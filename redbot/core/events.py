@@ -237,16 +237,14 @@ def init_events(bot, cli_flags):
                 "Exception in command '{}'".format(ctx.command.qualified_name),
                 exc_info=error.original,
             )
-
-            message = _(
-                "Error in command '{command}'. Check your console or logs for details."
-            ).format(command=ctx.command.qualified_name)
+            message = _("<:error:810608040125399090> Uh oh! There was an error in the `{command}` command!\nThis error has already been reported, but if this keeps happening, you can join my support server with  `{prefix}support`"
+            ).format(command=ctx.command.qualified_name, prefix=ctx.clean_prefix)
             exception_log = "Exception in command '{}'\n" "".format(ctx.command.qualified_name)
             exception_log += "".join(
                 traceback.format_exception(type(error), error, error.__traceback__)
             )
             bot._last_exception = exception_log
-            await ctx.send(inline(message))
+            await ctx.send(message)
         elif isinstance(error, commands.CommandNotFound):
             help_settings = await HelpSettings.from_context(ctx)
             fuzzy_commands = await fuzzy_command_search(

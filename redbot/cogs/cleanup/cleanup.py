@@ -51,6 +51,9 @@ class Cleanup(commands.Cog):
         Tries its best to cleanup after itself if the response is positive.
         """
 
+        if number > 10000:
+            return await ctx.send(_("Try a smaller number instead."))
+
         if ctx.assume_yes:
             return True
 

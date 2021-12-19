@@ -374,7 +374,7 @@ class CoreLogic:
         """
         return {"redbot": __version__, "discordpy": discord.__version__}
 
-    async def _invite_url(self) -> str:
+    async def _invite_url(self, snowflake: int=None) -> str:
         """
         Generates the invite URL for the bot.
 
@@ -389,7 +389,10 @@ class CoreLogic:
         scopes = ("bot", "applications.commands") if commands_scope else None
         perms_int = data["invite_perm"]
         permissions = discord.Permissions(perms_int)
-        return discord.utils.oauth_url(app_info.id, permissions, scopes=scopes)
+        if snowflake:
+            return discord.utils.oauth_url(snowflake, permissions, scopes=scopes)
+        else:
+            return discord.utils.oauth_url(app_info.id, permissions, scopes=scopes)
 
     @staticmethod
     async def _can_get_invite_url(ctx):
@@ -1475,27 +1478,6 @@ class Core(commands.commands._RuleDropper, commands.Cog, CoreLogic):
                 await ctx.tick()
         else:
             await ctx.send(_("No exception has occurred yet."))
-
-    @commands.command()
-    @commands.check(CoreLogic._can_get_invite_url)
-    async def invite(self, ctx):
-        """Shows [botname]'s invite url.
-
-        This will always send the invite to DMs to keep it private.
-
-        This command is locked to the owner unless `[p]inviteset public` is set to True.
-
-        **Example:**
-            - `[p]invite`
-        """
-        try:
-            await ctx.author.send(await self._invite_url())
-            await ctx.tick()
-        except discord.errors.Forbidden:
-            await ctx.send(
-                "I couldn't send the invite message to you in DM. "
-                "Either you blocked me or you disabled DMs in this server."
-            )
 
     @commands.group()
     @checks.is_owner()
@@ -3071,41 +3053,6 @@ class Core(commands.commands._RuleDropper, commands.Cog, CoreLogic):
             await ctx.send(_("Prefix set."))
         else:
             await ctx.send(_("Prefixes set."))
-
-    @_set.command(aliases=["serverprefixes"])
-    @checks.admin_or_permissions(manage_guild=True)
-    @commands.guild_only()
-    async def serverprefix(self, ctx: commands.Context, *prefixes: str):
-        """
-        Sets [botname]'s server prefix(es).
-
-        Warning: This will override global prefixes, the bot will not respond to any global prefixes in this server.
-            This is not additive. It will replace all current server prefixes.
-            A prefix cannot have more than 20 characters.
-
-        **Examples:**
-            - `[p]set serverprefix !`
-            - `[p]set serverprefix "! "` - Quotes are needed to use spaces in prefixes.
-            - `[p]set serverprefix "@[botname] "` - This uses a mention as the prefix.
-            - `[p]set serverprefix ! ? .` - Sets multiple prefixes.
-
-        **Arguments:**
-            - `[prefixes...]` - The prefixes the bot will respond to on this server. Leave blank to clear server prefixes.
-        """
-        if not prefixes:
-            await ctx.bot.set_prefixes(guild=ctx.guild, prefixes=[])
-            await ctx.send(_("Server prefixes have been reset."))
-            return
-        if any(len(x) > MAX_PREFIX_LENGTH for x in prefixes):
-            await ctx.send(_("You cannot have a prefix longer than 20 characters."))
-            return
-        prefixes = sorted(prefixes, reverse=True)
-        await ctx.bot.set_prefixes(guild=ctx.guild, prefixes=prefixes)
-        if len(prefixes) == 1:
-            await ctx.send(_("Server prefix set."))
-        else:
-            await ctx.send(_("Server prefixes set."))
-
     @_set.command()
     @checks.is_owner()
     async def globallocale(self, ctx: commands.Context, language_code: str):
@@ -3381,6 +3328,24 @@ class Core(commands.commands._RuleDropper, commands.Cog, CoreLogic):
             await ctx.send(msg)
         else:
             await ctx.send(_("None of the services you provided had any keys set."))
+
+    @_set.command()
+    @checks.is_owner()
+    async def sentry(self, ctx: commands.Context, url: str=None):
+        """
+        Sets the Sentry DSN.
+
+        This is used to report errors.
+
+        **Arguments:**
+            - `[url]` - The DSN URL.
+        """
+        if url is None:
+            await ctx.bot._config.sentry.clear()
+            await ctx.send(_("The Sentry DSN has been cleared."))
+            return
+        await ctx.bot._config.sentry.set(url)
+        await ctx.send(_("Sentry DSN set."))
 
     @commands.group()
     @checks.is_owner()
@@ -5285,3 +5250,11 @@ class Core(commands.commands._RuleDropper, commands.Cog, CoreLogic):
         )
         await ctx.send(message)
         # We need a link which contains a thank you to other projects which we use at some point.
+
+    @commands.Cog.listener()
+    async def on_message_edit(self, before, after):
+        if not after.edited_at or before.content == after.content:  
+            return
+        if not after.author.bot:
+            ctx = await self.bot.get_context(after)
+            await self.bot.invoke(ctx)

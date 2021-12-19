@@ -33,15 +33,11 @@ _ = Translator("Audio", Path(__file__))
 
 
 class PlayerCommands(MixinMeta, metaclass=CompositeMetaClass):
-    @commands.command(name="play")
+    @commands.command(name="play", aliases=["p"])
     @commands.guild_only()
     @commands.bot_has_permissions(embed_links=True)
     async def command_play(self, ctx: commands.Context, *, query: str):
-        """Play the specified track or search for a close match.
-
-        To play a local track, the query should be `<parentfolder>\\<filename>`.
-        If you are the bot owner, use `[p]audioset info` to display your localtracks path.
-        """
+        """Play the specified track or search for a close match."""
         query = Query.process_input(query, self.local_folder_current_path)
         guild_data = await self.config.guild(ctx.guild).all()
         restrict = await self.config.restrict()
@@ -137,7 +133,7 @@ class PlayerCommands(MixinMeta, metaclass=CompositeMetaClass):
             self.update_player_lock(ctx, False)
             raise e
 
-    @commands.command(name="bumpplay")
+    @commands.command(name="bumpplay", aliases=["bp"])
     @commands.guild_only()
     @commands.bot_has_permissions(embed_links=True)
     async def command_bumpplay(
@@ -937,3 +933,125 @@ class PlayerCommands(MixinMeta, metaclass=CompositeMetaClass):
             return await menu(ctx, search_page_list, DEFAULT_CONTROLS)
 
         await menu(ctx, search_page_list, search_controls)
+
+    @commands.command(name="playmix", aliases=["pmix", "mix", "pm"])
+    @commands.guild_only()
+    @commands.bot_has_permissions(embed_links=True)
+    @commands.cooldown(1, 5, commands.BucketType.guild)
+    async def command_playmix(self, ctx: commands.Context, *, query: str):
+        """Generate and enqueue a mix playlist based on query."""
+        query = Query.process_input(query, self.local_folder_current_path)
+        restrict = await self.config.restrict()
+        guild_data = await self.config.guild(ctx.guild).all()
+        if restrict and self.match_url(str(query)):
+            valid_url = self.is_url_allowed(str(query))
+            if not valid_url:
+                return await self.send_embed_msg(
+                    ctx,
+                    title="Unable To Play Tracks",
+                    description="That URL is not allowed.",
+                )
+        elif not await self.is_query_allowed(self.config, ctx, f"{query}", query_obj=query):
+            return await self.send_embed_msg(
+                ctx, title="Unable To Play Tracks", description="That track is not allowed."
+            )
+        can_skip = await self._can_instaskip(ctx, ctx.author)
+        if guild_data["dj_enabled"] and not can_skip:
+            return await self.send_embed_msg(
+                ctx,
+                title="Unable To Play Tracks",
+                description="You need the DJ role to queue tracks.",
+            )
+        if not self._player_check(ctx):
+            if self.lavalink_connection_aborted:
+                msg = "Connection to Lavalink has failed"
+                desc = EmptyEmbed
+                if await self.bot.is_owner(ctx.author):
+                    desc = "Please check your console or logs for details."
+                return await self.send_embed_msg(ctx, title=msg, description=desc)
+            try:
+                if not self.can_join_and_speak(ctx.author.voice.channel) or self.is_vc_full(
+                    ctx.author.voice.channel
+                ):
+                    return await self.send_embed_msg(
+                        ctx,
+                        title="Unable To Play Tracks",
+                        description=(
+                            "I don't have permission to connect and speak in your channel."
+                        ),
+                    )
+                await lavalink.connect(
+                    ctx.author.voice.channel,
+                    deafen=await self.config.guild_from_id(ctx.guild.id).auto_deafen(),
+                )
+            except AttributeError:
+                return await self.send_embed_msg(
+                    ctx,
+                    title="Unable To Play Tracks",
+                    description="Connect to a voice channel first.",
+                )
+            except IndexError:
+                return await self.send_embed_msg(
+                    ctx,
+                    title="Unable To Play Tracks",
+                    description="Connection to Lavalink has not yet been established.",
+                )
+        player = lavalink.get_player(ctx.guild.id)
+        player.store("notify_channel", ctx.channel.id)
+        await self._eq_check(ctx, player)
+        await self.set_player_settings(ctx)
+        if (not ctx.author.voice or ctx.author.voice.channel != player.channel) and not can_skip:
+            return await self.send_embed_msg(
+                ctx,
+                title="Unable To Play Tracks",
+                description="You must be in the voice channel to use the play command.",
+            )
+        if not query.valid:
+            return await self.send_embed_msg(
+                ctx,
+                title="Unable To Play Tracks",
+                description="No tracks found for `{query}`.".format(query=query.to_string_user()),
+            )
+        if len(player.queue) >= 10000:
+            return await self.send_embed_msg(
+                ctx, title="Unable To Play Tracks", description="Queue size limit reached."
+            )
+        if not query.single_track:
+            return await self.send_embed_msg(
+                ctx,
+                title="Unable To Create Mixlist",
+                description="You need to specify a single track to generate a mixlist.",
+            )
+        elif not (query.is_youtube or query.is_spotify):
+            return await self.send_embed_msg(
+                ctx,
+                title="Unable To Create Mixlist",
+                description="You need to specify a YouTube or Spotify track.",
+            )
+        try:
+            async with ctx.typing():
+                if query.is_spotify:
+                    tracks = await self._get_spotify_tracks(ctx, query)
+                elif query.is_apple_music:
+                    tracks = await self._get_apple_music_tracks(ctx, query)
+                else:
+                    tracks = await self._enqueue_tracks(ctx, query, enqueue=False)
+                self.update_player_lock(ctx, False)
+                if isinstance(tracks, discord.Message):
+                    return
+                if not tracks:
+                    return await self.send_embed_msg(ctx, title="Couldn't generated a mixlist.")
+                single_track = tracks if isinstance(tracks, lavalink.rest_api.Track) else tracks[0]
+                _id = single_track._info["identifier"]
+                mix = "https://www.youtube.com/watch?v={id}&list=RD{id}".format(id=_id)
+                query = Query.process_input(mix, self.local_folder_current_path)
+                if not await self.maybe_charge_requester(ctx, guild_data["jukebox_price"]):
+                    return
+                await self._enqueue_tracks(ctx, query)
+        except QueryUnauthorized as err:
+            return await self.send_embed_msg(
+                ctx, title="Unable To Play Tracks", description=err.message
+            )
+        except Exception as e:
+            self.update_player_lock(ctx, False)
+            raise e

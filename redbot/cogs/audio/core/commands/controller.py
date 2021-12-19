@@ -193,7 +193,7 @@ class PlayerControllerCommands(MixinMeta, metaclass=CompositeMetaClass):
         elif react == "close":
             await message.delete()
 
-    @commands.command(name="pause")
+    @commands.command(name="pause", aliases=["unpause", "resume"])
     @commands.guild_only()
     @commands.bot_has_permissions(embed_links=True)
     async def command_pause(self, ctx: commands.Context):
@@ -468,7 +468,7 @@ class PlayerControllerCommands(MixinMeta, metaclass=CompositeMetaClass):
         if self._player_check(ctx):
             await self.set_player_settings(ctx)
 
-    @commands.command(name="skip")
+    @commands.command(name="skip", aliases=["sk"])
     @commands.guild_only()
     @commands.bot_has_permissions(embed_links=True)
     async def command_skip(self, ctx: commands.Context, skip_to_track: int = None):
@@ -692,7 +692,7 @@ class PlayerControllerCommands(MixinMeta, metaclass=CompositeMetaClass):
                 description=_("Connection to Lavalink has not yet been established."),
             )
 
-    @commands.command(name="volume")
+    @commands.command(name="volume", aliases=["vol", "v"])
     @commands.guild_only()
     @commands.bot_has_permissions(embed_links=True)
     async def command_volume(self, ctx: commands.Context, vol: int = None):
@@ -739,7 +739,7 @@ class PlayerControllerCommands(MixinMeta, metaclass=CompositeMetaClass):
             embed.set_footer(text=_("Nothing playing."))
         await self.send_embed_msg(ctx, embed=embed)
 
-    @commands.command(name="repeat")
+    @commands.command(name="repeat", aliases=["loop"])
     @commands.guild_only()
     @commands.bot_has_permissions(embed_links=True)
     async def command_repeat(self, ctx: commands.Context):

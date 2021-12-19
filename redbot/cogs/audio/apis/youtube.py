@@ -1,4 +1,5 @@
 import json
+import contextlib
 import logging
 from pathlib import Path
 
@@ -48,41 +49,19 @@ class YouTubeWrapper:
 
     async def get_call(self, query: str) -> Optional[str]:
         """Make a Get call to youtube data api."""
-        params = {
-            "q": query,
-            "part": "id",
-            "key": await self._get_api_key(),
-            "maxResults": 1,
-            "type": "video",
-        }
-        async with self.session.request("GET", SEARCH_ENDPOINT, params=params) as r:
-            if r.status == 400:
-                if r.reason == "Bad Request":
-                    raise YouTubeApiError(
-                        _(
-                            "Your YouTube Data API token is invalid.\n"
-                            "Check the YouTube API key again and follow the instructions "
-                            "at `{prefix}audioset youtubeapi`."
-                        )
-                    )
-                return None
-            elif r.status == 404:
-                return None
-            elif r.status == 403:
-                if r.reason in ["Forbidden", "quotaExceeded"]:
-                    raise YouTubeApiError(
-                        _(
-                            "YouTube API error code: 403\nYour YouTube API key may have "
-                            "reached the account's query limit for today. Please check "
-                            "<https://developers.google.com/youtube/v3/getting-started#quota> "
-                            "for more information."
-                        )
-                    )
-                return None
-            else:
-                search_response = await r.json(loads=json.loads)
-        for search_result in search_response.get("items", []):
-            if search_result["id"]["kind"] == "youtube#video":
-                return f"https://www.youtube.com/watch?v={search_result['id']['videoId']}"
+        config = await self.config.all()
+        pw = config.get("password")
+        host = config.get("host")
+        port = config.get("rest_port")
 
-        return None
+        params = {"identifier": "ytsearch:" + query}
+        headers = {"Authorization": pw, "Accept": "application/json"}
+        async with self.session.get(
+            f"http://{host}:{port}/loadtracks",
+            params=params,
+            headers=headers,
+        ) as request:
+            if request.status == 200:
+                response = await request.json()
+                with contextlib.suppress(KeyError):
+                    return response["tracks"][0]["info"]["uri"]

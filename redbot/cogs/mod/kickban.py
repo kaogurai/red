@@ -200,7 +200,7 @@ class KickBanMixin(MixinMeta):
                         author.name, author.id, ban_type, username, user.id, str(days)
                     )
                 )
-                success_message = _("Done. That felt good.")
+                success_message = _(f"**{username}** has been banned from the server.")
             except discord.Forbidden:
                 return False, _("I'm not allowed to do that.")
             except discord.NotFound:
@@ -361,7 +361,7 @@ class KickBanMixin(MixinMeta):
                 until=None,
                 channel=None,
             )
-            await ctx.send(_("Done. That felt good."))
+            await ctx.send(_(f"**{member}** has been kicked from the server."))
 
     @commands.command()
     @commands.guild_only()
@@ -671,7 +671,8 @@ class KickBanMixin(MixinMeta):
                 reason,
                 unban_time,
             )
-            await ctx.send(_("Done. Enough chaos for now."))
+            date = unban_time.strftime("%m-%d-%Y %H:%M:%S")
+            await ctx.send(_(f"**{member}** has been tempbanned from the server until {date}"))
 
     @commands.command()
     @commands.guild_only()
@@ -754,7 +755,7 @@ class KickBanMixin(MixinMeta):
                 until=None,
                 channel=None,
             )
-            await ctx.send(_("Done. Enough chaos."))
+            await ctx.send(_(f"**{member}** has been softbanned from the server."))
 
     @commands.command()
     @commands.guild_only()
@@ -801,7 +802,7 @@ class KickBanMixin(MixinMeta):
                 until=None,
                 channel=case_channel,
             )
-            await ctx.send(_("User has been kicked from the voice channel."))
+            await ctx.send(_(f"**{member}** has been kicked from the voice channel."))
 
     @commands.command()
     @commands.guild_only()
@@ -844,7 +845,7 @@ class KickBanMixin(MixinMeta):
             until=None,
             channel=None,
         )
-        await ctx.send(_("User is now allowed to speak and listen in voice channels."))
+        await ctx.send(_("**{member}** is now allowed to speak and listen in voice channels."))
 
     @commands.command()
     @commands.guild_only()
@@ -885,7 +886,9 @@ class KickBanMixin(MixinMeta):
             until=None,
             channel=None,
         )
-        await ctx.send(_("User has been banned from speaking or listening in voice channels."))
+        await ctx.send(
+            _("**{member}** has been banned from speaking or listening in voice channels.")
+        )
 
     @commands.command()
     @commands.guild_only()

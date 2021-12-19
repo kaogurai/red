@@ -12,7 +12,7 @@ class Slowmode(MixinMeta):
     Commands regarding channel slowmode management.
     """
 
-    @commands.command()
+    @commands.command(aliases=["sm"])
     @commands.guild_only()
     @commands.bot_has_permissions(manage_channels=True)
     @checks.admin_or_permissions(manage_channels=True)

@@ -84,7 +84,7 @@ class Mutes(VoiceMutes, commands.Cog, metaclass=CompositeMetaClass):
             "notification_channel": None,
             "muted_users": {},
             "default_time": 0,
-            "dm": False,
+            "dm": True,
             "show_mod": False,
         }
         self.config.register_global(force_role_mutes=True, schema_version=0)
@@ -619,9 +619,6 @@ class Mutes(VoiceMutes, commands.Cog, metaclass=CompositeMetaClass):
                 )
                 del self._server_mutes[guild.id][after.id]
                 should_save = True
-                await self._send_dm_notification(
-                    after, None, guild, _("Server unmute"), _("Manually removed mute role")
-                )
         elif mute_role in roles_added:
             # send modlog case for mute and add to cache
             if guild.id not in self._server_mutes:

@@ -1,7 +1,8 @@
 import datetime
-from typing import cast
+from typing import Union, cast
 
 import discord
+
 from redbot.core import commands, i18n, checks
 from redbot.core.utils.common_filters import (
     filter_invites,
@@ -20,65 +21,16 @@ class ModInfo(MixinMeta):
     Commands regarding names, userinfo, etc.
     """
 
-    async def get_names_and_nicks(self, user):
+    async def get_names_and_nicks(self, user, ctx):
         names = await self.config.user(user).past_names()
-        nicks = await self.config.member(user).past_nicks()
+        nicks = None
+        if hasattr(user, "guild") and ctx.guild:
+            nicks = await self.config.member(user).past_nicks()
         if names:
             names = [escape_spoilers_and_mass_mentions(name) for name in names if name]
         if nicks:
             nicks = [escape_spoilers_and_mass_mentions(nick) for nick in nicks if nick]
         return names, nicks
-
-    @commands.command()
-    @commands.guild_only()
-    @commands.bot_has_permissions(manage_nicknames=True)
-    @checks.admin_or_permissions(manage_nicknames=True)
-    async def rename(self, ctx: commands.Context, member: discord.Member, *, nickname: str = ""):
-        """Change a member's nickname.
-
-        Leaving the nickname empty will remove it.
-        """
-        nickname = nickname.strip()
-        me = cast(discord.Member, ctx.me)
-        if not nickname:
-            nickname = None
-        elif not 2 <= len(nickname) <= 32:
-            await ctx.send(_("Nicknames must be between 2 and 32 characters long."))
-            return
-        if not (
-            (me.guild_permissions.manage_nicknames or me.guild_permissions.administrator)
-            and me.top_role > member.top_role
-            and member != ctx.guild.owner
-        ):
-            await ctx.send(
-                _(
-                    "I do not have permission to rename that member. They may be higher than or "
-                    "equal to me in the role hierarchy."
-                )
-            )
-        elif ctx.author != member and not await is_allowed_by_hierarchy(
-            self.bot, self.config, ctx.guild, ctx.author, member
-        ):
-            await ctx.send(
-                _(
-                    "I cannot let you do that. You are "
-                    "not higher than the user in the role "
-                    "hierarchy."
-                )
-            )
-        else:
-            try:
-                await member.edit(reason=get_audit_reason(ctx.author, None), nick=nickname)
-            except discord.Forbidden:
-                # Just in case we missed something in the permissions check above
-                await ctx.send(_("I do not have permission to rename that member."))
-            except discord.HTTPException as exc:
-                if exc.status == 400:  # BAD REQUEST
-                    await ctx.send(_("That nickname is invalid."))
-                else:
-                    await ctx.send(_("An unexpected error has occured."))
-            else:
-                await ctx.send(_("Done."))
 
     def handle_custom(self, user):
         a = [c for c in user.activities if c.type == discord.ActivityType.custom]
@@ -168,62 +120,103 @@ class ModInfo(MixinMeta):
             string += f"{status_string}\n"
         return string
 
-    @commands.command()
-    @commands.guild_only()
-    @commands.bot_has_permissions(embed_links=True)
-    async def userinfo(self, ctx, *, member: discord.Member = None):
-        """Show information about a member.
+    @commands.command(aliases=["ui", "uinfo", "whois"])
+    @commands.bot_has_permissions(embed_links=True, use_external_emojis=True)
+    async def userinfo(self, ctx, *, member: Union[discord.Member, discord.User] = None):
+        """
+        Show information about a user.
 
         This includes fields for status, discord join date, server
         join date, voice state and previous names/nicknames.
 
-        If the member has no roles, previous names or previous nicknames,
-        these fields will be omitted.
+        If the user is not in the server, it will not have all the normal information.
         """
-        author = ctx.author
+        status_emojis = {
+            "mobile": "<:mobile:749067110931759185>",
+            "streaming": "<:streaming:749221434039205909>",
+            "online": "<:online:749221433552404581>",
+            "offline": "<:offline:749221433049088082>",
+            "dnd": "<:do_not_disturb:749221432772395140>",
+            "idle": "<:idle:749221433095356417>",
+        }
+        badge_emojis = {
+            "early_supporter": "<:early_supporter:706198530837970998>",
+            "hypesquad_balance": "<:hypesquad_balance:706198531538550886>",
+            "hypesquad_bravery": "<:hypesquad_bravery:706198532998299779>",
+            "hypesquad_brilliance": "<:hypesquad_briliance:706198535846101092>",
+            "hypesquad": "<:hypesquad_events:706198537049866261>",
+            "verified_bot_developer": "<:early_verified_bot_developer:706198727953612901>",
+            "discord_certified_moderator": "<:discord_certified_moderator:848556248357273620>",
+            "staff": "<:discord_employee:848556248832016384>",
+            "partner": "<:discord_partner:848556249192202247>",
+            "verified_bot": "<:verified_bot:848557763328344064>",  # not used, just easier this way
+            "verified_bot_part_1": "<:verified_bot1:848561838974697532>",
+            "verified_bot_part_2": "<:verified_bot2:848561839260434482>",
+            "bug_hunter": "<:bug_hunter_lvl1:848556247632052225>",
+            "bug_hunter_level_2": "<:bug_hunter_lvl2:706199712402898985>",
+        }
         guild = ctx.guild
 
         if not member:
-            member = author
+            member = ctx.author
 
-        #  A special case for a special someone :^)
-        special_date = datetime.datetime(2016, 1, 10, 6, 8, 4, 443000, datetime.timezone.utc)
-        is_special = member.id == 96130341705637888 and guild.id == 133049272517001216
-
-        roles = member.roles[-1:0:-1]
-        names, nicks = await self.get_names_and_nicks(member)
-
-        if is_special:
-            joined_at = special_date
-        elif joined_at := member.joined_at:
-            joined_at = joined_at.replace(tzinfo=datetime.timezone.utc)
+        names, nicks = await self.get_names_and_nicks(member, ctx)
         user_created = int(member.created_at.replace(tzinfo=datetime.timezone.utc).timestamp())
-        voice_state = member.voice
-        member_number = (
-            sorted(guild.members, key=lambda m: m.joined_at or ctx.message.created_at).index(
-                member
-            )
-            + 1
-        )
 
         created_on = "<t:{0}>\n(<t:{0}:R>)".format(user_created)
-        if joined_at is not None:
-            joined_on = "<t:{0}>\n(<t:{0}:R>)".format(int(joined_at.timestamp()))
-        else:
-            joined_on = _("Unknown")
 
-        if any(a.type is discord.ActivityType.streaming for a in member.activities):
-            statusemoji = "\N{LARGE PURPLE CIRCLE}"
-        elif member.status.name == "online":
-            statusemoji = "\N{LARGE GREEN CIRCLE}"
-        elif member.status.name == "offline":
-            statusemoji = "\N{MEDIUM WHITE CIRCLE}\N{VARIATION SELECTOR-16}"
-        elif member.status.name == "dnd":
-            statusemoji = "\N{LARGE RED CIRCLE}"
-        elif member.status.name == "idle":
-            statusemoji = "\N{LARGE ORANGE CIRCLE}"
-        activity = _("Chilling in {} status").format(member.status)
-        status_string = self.get_status_string(member)
+        # stuff that needs a guild object here
+        joined_at = None
+        since_joined = None
+        user_joined = None
+        staus_emoji = None
+        activity = None
+        status_string = None
+        roles = None
+        joined_on = None
+        name = str(member)
+        colour = await ctx.embed_color()
+        member_number = None
+        voice_state = None
+        shared_guilds = None
+        if hasattr(member, "guild") and ctx.guild:
+            if member.is_on_mobile():
+                staus_emoji = status_emojis["mobile"]
+            elif any(a.type is discord.ActivityType.streaming for a in member.activities):
+                staus_emoji = status_emojis["streaming"]
+            elif member.status.name == "online":
+                staus_emoji = status_emojis["online"]
+            elif member.status.name == "offline":
+                staus_emoji = status_emojis["offline"]
+            elif member.status.name == "dnd":
+                staus_emoji = status_emojis["dnd"]
+            elif member.status.name == "idle":
+                staus_emoji = status_emojis["idle"]
+
+            activity = _("Chilling in {} status").format(member.status)
+            status_string = self.get_status_string(member)
+            roles = member.roles[-1:0:-1]
+            joined_on = _("{}\n({} days ago)").format(user_joined, since_joined)
+            name = " ~ ".join((name, member.nick)) if member.nick else name
+            colour = member.colour
+            if hasattr(member, "guild") and ctx.guild:
+                member_number = (
+                    sorted(
+                        guild.members, key=lambda m: m.joined_at or ctx.message.created_at
+                    ).index(member)
+                    + 1
+                )
+            voice_state = member.voice
+            if member == ctx.guild.me:
+                shared_guilds = len(ctx.bot.guilds)
+            else:
+                shared_guilds = len(member.mutual_guilds)
+            joined_at = member.joined_at.replace(tzinfo=datetime.timezone.utc)
+
+            if joined_at is not None:
+                joined_on = "<t:{0}>\n(<t:{0}:R>)".format(int(joined_at.timestamp()))
+            else:
+                joined_on = _("Unknown")
 
         if roles:
 
@@ -261,10 +254,40 @@ class ModInfo(MixinMeta):
         else:
             role_str = None
 
-        data = discord.Embed(description=status_string or activity, colour=member.colour)
+        badges = member.public_flags.all()
+        if badges:
+
+            def format_name(name):
+                return name.replace("_", " ").title()
+
+            def get_emoji(name):
+                if name == "verified_bot":
+                    p1 = badge_emojis["verified_bot_part_1"]
+                    p2 = badge_emojis["verified_bot_part_2"]
+                    return p1 + p2
+                return badge_emojis[name]
+
+            badge_str = "\n".join(
+                [
+                    f"{format_name(badge.name)} {get_emoji(badge.name)}"
+                    if badge.name in badge_emojis
+                    else f"{badge.name} {badge.value})"
+                    for badge in badges
+                ]
+            )
+
+        description = status_string or activity or ""
+        if shared_guilds:
+            description += _("\nShared servers: {num_shared}").format(num_shared=shared_guilds)
+        data = discord.Embed(description=description, colour=colour)
 
         data.add_field(name=_("Joined Discord on"), value=created_on)
-        data.add_field(name=_("Joined this server on"), value=joined_on)
+        if joined_on:
+            data.add_field(name=_("Joined this server on"), value=joined_on)
+
+        if badges:
+            data.add_field(name="Badges", value=badge_str, inline=False)
+
         if role_str is not None:
             data.add_field(
                 name=_("Roles") if len(roles) > 1 else _("Role"), value=role_str, inline=False
@@ -291,22 +314,32 @@ class ModInfo(MixinMeta):
                 value="{0.mention} ID: {0.id}".format(voice_state.channel),
                 inline=False,
             )
-        data.set_footer(text=_("Member #{} | User ID: {}").format(member_number, member.id))
 
-        name = str(member)
-        name = " ~ ".join((name, member.nick)) if member.nick else name
+        if member_number:
+            data.set_footer(text=_("Member #{} | User ID: {}").format(member_number, member.id))
+        else:
+            data.set_footer(text=_("User ID: {}").format(member.id))
+
         name = filter_invites(name)
 
         avatar = member.avatar_url_as(static_format="png")
-        data.set_author(name=f"{statusemoji} {name}", url=avatar)
+
+        if staus_emoji:
+            data.title = f"{staus_emoji} {name}"
+        else:
+            data.title = name
+
         data.set_thumbnail(url=avatar)
 
         await ctx.send(embed=data)
 
     @commands.command()
-    async def names(self, ctx: commands.Context, *, member: discord.Member):
+    async def names(self, ctx: commands.Context, *, member: Union[discord.Member, discord.User] = None):
         """Show previous names and nicknames of a member."""
-        names, nicks = await self.get_names_and_nicks(member)
+        if not member:
+            member = ctx.author
+
+        names, nicks = await self.get_names_and_nicks(member, ctx)
         msg = ""
         if names:
             msg += _("**Past 20 names**:")

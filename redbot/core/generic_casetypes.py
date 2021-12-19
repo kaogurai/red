@@ -47,14 +47,14 @@ voiceunban = {
 }
 voicemute = {
     "name": "vmute",
-    "default_setting": False,
+    "default_setting": True,
     "image": "\N{SPEAKER WITH CANCELLATION STROKE}",
     "case_str": "Voice Mute",
 }
 
 channelmute = {
     "name": "cmute",
-    "default_setting": False,
+    "default_setting": True,
     "image": "\N{SPEAKER WITH CANCELLATION STROKE}",
     "case_str": "Channel Mute",
 }
@@ -68,13 +68,13 @@ servermute = {
 
 voiceunmute = {
     "name": "vunmute",
-    "default_setting": False,
+    "default_setting": True,
     "image": "\N{SPEAKER}\N{VARIATION SELECTOR-16}",
     "case_str": "Voice Unmute",
 }
 channelunmute = {
     "name": "cunmute",
-    "default_setting": False,
+    "default_setting": True,
     "image": "\N{SPEAKER}\N{VARIATION SELECTOR-16}",
     "case_str": "Channel Unmute",
 }
@@ -87,7 +87,7 @@ serverunmute = {
 
 voicekick = {
     "name": "vkick",
-    "default_setting": False,
+    "default_setting": True,
     "image": "\N{SPEAKER WITH CANCELLATION STROKE}",
     "case_str": "Voice Kick",
 }

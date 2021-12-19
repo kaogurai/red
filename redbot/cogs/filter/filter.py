@@ -1,3 +1,5 @@
+import unidecode
+import unicodedata
 import asyncio
 import discord
 import re
@@ -31,7 +33,9 @@ class Filter(commands.Cog):
             "filter": [],
             "filterban_count": 0,
             "filterban_time": 0,
-            "filter_names": False,
+            "filter_names": True,
+            "decancer_messages": True,
+            "decancer_names": True,
             "filter_default_name": "John Doe",
         }
         default_member_settings = {"filter_count": 0, "next_reset_time": 0}
@@ -65,7 +69,7 @@ class Filter(commands.Cog):
             [
                 {
                     "name": "filterban",
-                    "default_setting": False,
+                    "default_setting": True,
                     "image": "\N{FILE CABINET}\N{VARIATION SELECTOR-16} \N{HAMMER}",
                     "case_str": "Filter ban",
                 },
@@ -141,6 +145,49 @@ class Filter(commands.Cog):
                 guild_data["filterban_count"] = count
                 guild_data["filterban_time"] = timeframe
             await ctx.send(_("Count and time have been set."))
+
+    @filterset.group()
+    async def decancer(self, ctx: commands.Context):
+        """
+        Toggles normaization of text before it hits the filter.
+
+        This will remove odd characters used to bypass the filter.
+        """
+        pass
+
+    @decancer.command(name="messages")
+    async def decancer_messages(self, ctx: commands.Context):
+        """
+        Toggle decancering messages before they hit the filter.
+
+        Enabling this will catch a LOT of workarounds, but you may disable it to be more specific.
+
+        This is enabled by default.
+        """
+
+        if await self.config.guild(ctx.guild).decancer_messages() is True:
+            await self.config.guild(ctx.guild).decancer_messages.set(False)
+            await ctx.send("I will no longer decancer messages in this server.")
+        else:
+            await self.config.guild(ctx.guild).decancer_messages.set(True)
+            await ctx.send("I will now decancer messages in this server.")
+
+    @decancer.command(name="names")
+    async def decancer_names(self, ctx: commands.Context):
+        """
+        Toggle decancering names before they hit the filter.
+
+        Enabling this will catch a LOT of workarounds, but you may disable it to be more specific.
+
+        This is enabled by default.
+        """
+
+        if await self.config.guild(ctx.guild).decancer_names() is True:
+            await self.config.guild(ctx.guild).decancer_names.set(False)
+            await ctx.send("I will no longer decancer names in this server.")
+        else:
+            await self.config.guild(ctx.guild).decancer_names.set(True)
+            await ctx.send("I will now decancer names in this server.")
 
     @commands.group(name="filter")
     @commands.guild_only()
@@ -330,11 +377,12 @@ class Filter(commands.Cog):
         else:
             await ctx.send(_("Those words weren't in the filter."))
 
-    @_filter.command(name="names")
+    @filterset.command(name="names")
     async def filter_names(self, ctx: commands.Context):
-        """Toggle name and nickname filtering.
+        """
+        Toggle name and nickname filtering.
 
-        This is disabled by default.
+        This is enabled by default.
         """
         guild = ctx.guild
 
@@ -345,6 +393,18 @@ class Filter(commands.Cog):
             await ctx.send(_("Names and nicknames will no longer be filtered."))
         else:
             await ctx.send(_("Names and nicknames will now be filtered."))
+    
+    @staticmethod  # thanks kable - https://github.com/kablekompany/Kable-Kogs/blob/master/decancer/decancer.py
+    def decancer_text(text):
+        try:
+            text = unicodedata.normalize("NFKC", text)
+            text = unicodedata.normalize("NFD", text)
+            text = unidecode.unidecode(text)
+            text = text.encode("ascii", "ignore")
+            text = text.decode("utf-8")
+        except Exception as e:
+            pass
+        return str(text)
 
     def invalidate_cache(self, guild: discord.Guild, channel: discord.TextChannel = None):
         """ Invalidate a cached pattern"""
@@ -395,7 +455,10 @@ class Filter(commands.Cog):
         return removed
 
     async def filter_hits(
-        self, text: str, server_or_channel: Union[discord.Guild, discord.TextChannel]
+        self,
+        text: str,
+        server_or_channel: Union[discord.Guild, discord.TextChannel],
+        nick: bool = True,
     ) -> Set[str]:
 
         try:
@@ -404,6 +467,13 @@ class Filter(commands.Cog):
         except AttributeError:
             guild = server_or_channel
             channel = None
+
+        if nick is True:
+            if await self.config.guild(guild).decancer_names() is True:
+                text = self.decancer_text(text)
+        else:
+            if await self.config.guild(guild).decancer_messages() is True:
+                text = self.decancer_text(text)
 
         hits: Set[str] = set()
 
@@ -447,7 +517,7 @@ class Filter(commands.Cog):
                         user_count = 0
                         member_data["filter_count"] = user_count
 
-        hits = await self.filter_hits(message.content, message.channel)
+        hits = await self.filter_hits(message.content, message.channel, False)
 
         if hits:
             await modlog.create_case(
@@ -543,7 +613,7 @@ class Filter(commands.Cog):
 
         await set_contextual_locales_from_guild(self.bot, guild)
 
-        if await self.filter_hits(member.display_name, member.guild):
+        if await self.filter_hits(member.display_name, member.guild, True):
             name_to_use = guild_data["filter_default_name"]
             reason = _("Filtered nickname") if member.nick else _("Filtered name")
             try:

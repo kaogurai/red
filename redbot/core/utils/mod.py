@@ -36,6 +36,16 @@ async def mass_purge(messages: List[discord.Message], channel: discord.TextChann
         Deleting the messages failed.
 
     """
+    if len(messages) == 1:
+        m = await channel.send(
+            "It seems that the messages in this channel are over 14 days old, so I can't delete them."
+        )
+        await asyncio.sleep(5)
+        try:
+            await m.delete()
+        except discord.NotFound:
+            pass
+
     while messages:
         # discord.NotFound can be raised when `len(messages) == 1` and the message does not exist.
         # As a result of this obscure behavior, this error needs to be caught just in case.
