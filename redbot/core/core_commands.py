@@ -974,6 +974,33 @@ class Core(commands.commands._RuleDropper, commands.Cog, CoreLogic):
                 )
             )
 
+    @mydata.command(aliases=["selfblocklist"], cls=commands.commands._AlwaysAvailableCommand)
+    async def selfblacklist(self, ctx):
+        """
+        Blacklist yourself from the bot to avoid data collection.
+
+        Warning: this is extremely dangerous and should only be used if you know what you're doing.
+        """
+        if await self.bot.is_owner(ctx.author):
+            return await ctx.send("Owners can't blacklist themselves.")
+
+        if not await self.get_serious_confirmation(
+            ctx,
+            (
+                "This will cause you to be blacklised from the bot. "
+                "The bot will no longer process commands by you "
+                "so only do this if you really know what you're doing.\n\n"
+                "If you are doing this for data privacy reasons, "
+                "clear your data before continuing.\n"
+                "If this is really what you want, "
+                "please respond with the following:"
+            ),
+        ):
+            ctx.command.reset_cooldown(ctx)
+            return
+        await self.bot.add_to_blacklist([ctx.author])
+        await ctx.send("You have been blacklisted from the bot.")
+
     @commands.group()
     async def embedset(self, ctx: commands.Context):
         """
