@@ -1,11 +1,11 @@
 # kaogurai's fork of red
 
-# notes
+## notes
 - i do not recommend using this fork
 - it is designed strictly for my use and breaking changes can occur whenever
 - no support will be provided if you do choose to use it
 
-# changes from core red
+## changes from core red
 - audio uses lavalink's /loadtracks instead of the youtube api
 - some aliases have been added to audio commands
 - a playmix command has been added to audio (from draper's alpha audio)
@@ -26,3 +26,5 @@
 - the message when commands error has been made prettier
 - all modlog types are now on by default except filterhit
 - a message will be displayed when trying to purge messages over 14 days old in the cleanup cog
+- the `[p]ping` command has been removed
+- the `[p]info` command has been removed
