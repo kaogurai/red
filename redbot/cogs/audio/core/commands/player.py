@@ -1032,8 +1032,6 @@ class PlayerCommands(MixinMeta, metaclass=CompositeMetaClass):
             async with ctx.typing():
                 if query.is_spotify:
                     tracks = await self._get_spotify_tracks(ctx, query)
-                elif query.is_apple_music:
-                    tracks = await self._get_apple_music_tracks(ctx, query)
                 else:
                     tracks = await self._enqueue_tracks(ctx, query, enqueue=False)
                 self.update_player_lock(ctx, False)
