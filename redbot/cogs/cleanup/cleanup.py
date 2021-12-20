@@ -14,6 +14,7 @@ from redbot.core.utils.mod import slow_deletion, mass_purge
 from redbot.core.utils.predicates import MessagePredicate
 from .checks import check_self_permissions
 from .converters import PositiveInt, RawMessageIds, positive_int
+from copy import copy
 
 _ = Translator("Cleanup", __file__)
 
@@ -167,10 +168,23 @@ class Cleanup(commands.Cog):
                 pass
         return message
 
-    @commands.group()
-    async def cleanup(self, ctx: commands.Context):
-        """Base command for deleting messages."""
-        pass
+    @commands.group(invoke_without_command=True, aliases=["purge", "pu", "clean"])
+    async def cleanup(self, ctx: commands.Context, *, args: str):
+        """
+        Base command for deleting messages.
+
+        Providing no subcommand will invoke the text subcommand.
+
+        Example:
+            - `[p]cleanup 26` -> `[p]cleanup text 26`
+        """
+        if not ctx.invoked_subcommand:
+            if not ctx.guild:
+                await ctx.send_help()
+                return
+            msg = copy(ctx.message)
+            msg.content = f"{ctx.prefix}cleanup messages {args}"
+            self.bot.dispatch("message", msg)
 
     @cleanup.command()
     @commands.guild_only()
