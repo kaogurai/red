@@ -25,7 +25,7 @@ _ = Translator("Audio", Path(__file__))
 
 
 class PlayerControllerCommands(MixinMeta, metaclass=CompositeMetaClass):
-    @commands.command(name="disconnect")
+    @commands.command(name="disconnect", aliases=["dc"])
     @commands.guild_only()
     @commands.bot_has_permissions(embed_links=True)
     async def command_disconnect(self, ctx: commands.Context):
