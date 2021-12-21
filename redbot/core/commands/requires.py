@@ -770,7 +770,7 @@ def admin():
 
     This check can be overridden by rules.
     """
-    return admin_or_permissions()
+    return admin_or_permissions(manage_guild=True)
 
 
 def mod_or_permissions(**perms: bool):
@@ -786,7 +786,7 @@ def mod():
 
     This check can be overridden by rules.
     """
-    return mod_or_permissions()
+    return mod_or_permissions(manage_messages=True)
 
 
 class _IntKeyDict(Dict[int, _T]):
