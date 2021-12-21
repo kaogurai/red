@@ -63,5 +63,5 @@ class YouTubeWrapper:
         ) as request:
             if request.status == 200:
                 response = await request.json()
-                with contextlib.suppress(KeyError):
+                with contextlib.suppress(KeyError, IndexError):
                     return response["tracks"][0]["info"]["uri"]
