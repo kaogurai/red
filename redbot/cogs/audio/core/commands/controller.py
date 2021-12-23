@@ -79,7 +79,7 @@ class PlayerControllerCommands(MixinMeta, metaclass=CompositeMetaClass):
             self._ll_guild_updates.discard(ctx.guild.id)
             await self.api_interface.persistent_queue_api.drop(ctx.guild.id)
 
-    @commands.command(name="now")
+    @commands.command(name="now", aliases=["np"])
     @commands.guild_only()
     @commands.bot_has_permissions(embed_links=True, add_reactions=True)
     async def command_now(self, ctx: commands.Context):
