@@ -223,7 +223,7 @@ class PlayerUtilities(MixinMeta, metaclass=CompositeMetaClass):
     async def _get_spotify_tracks(
         self, ctx: commands.Context, query: Query, forced: bool = False
     ) -> Union[discord.Message, List[lavalink.Track], lavalink.Track]:
-        if ctx.invoked_with in ["play", "genre"]:
+        if ctx.invoked_with in ["play", "genre", "p"]:
             enqueue_tracks = True
         else:
             enqueue_tracks = False

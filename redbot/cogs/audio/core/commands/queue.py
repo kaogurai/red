@@ -31,7 +31,7 @@ _ = Translator("Audio", Path(__file__))
 
 
 class QueueCommands(MixinMeta, metaclass=CompositeMetaClass):
-    @commands.group(name="queue", aliases=["q"] invoke_without_command=True)
+    @commands.group(name="queue", aliases=["q"], invoke_without_command=True)
     @commands.guild_only()
     @commands.bot_has_permissions(embed_links=True, add_reactions=True)
     async def command_queue(self, ctx: commands.Context, *, page: int = 1):
