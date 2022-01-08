@@ -412,6 +412,11 @@ class Core(commands.commands._RuleDropper, commands.Cog, CoreLogic):
         """ Nothing to delete (Core Config is handled in a bot method ) """
         return
 
+    @commands.command(hidden=True)
+    async def ping(self, ctx: commands.Context):
+        """Pong."""
+        await ctx.send("Pong.")
+
     @commands.command()
     async def uptime(self, ctx: commands.Context):
         """Shows [botname]'s uptime."""
