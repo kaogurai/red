@@ -48,14 +48,19 @@ class YouTubeWrapper:
         return self.api_key if self.api_key is not None else ""
 
     async def get_call(self, query: str) -> Optional[str]:
-        """Make a Get call to youtube data api."""
+        """Make a Get call to 'youtube data api'."""
         config = await self.config.all()
-        pw = config.get("password")
-        host = config.get("host")
-        port = config.get("rest_port")
+        if not config["use_external_lavalink"]:
+            password = "youshallnotpass"
+            host = "localhost"
+            port = 2333
+        else:
+            password = config["password"]
+            host = config["host"]
+            port = config["ws_port"]
 
         params = {"identifier": "ytsearch:" + query}
-        headers = {"Authorization": pw, "Accept": "application/json"}
+        headers = {"Authorization": password, "Accept": "application/json"}
         async with self.session.get(
             f"http://{host}:{port}/loadtracks",
             params=params,
