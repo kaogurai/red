@@ -284,12 +284,6 @@ class LavalinkEvents(MixinMeta, metaclass=CompositeMetaClass):
                             ).format(error=description),
                         )
                     else:
-                        try:
-                            # Lavalink v3.4 jar files and later with RLL 0.9.0 and later
-                            extra_error_string = extra.get('message')
-                        except AttributeError:
-                            # Lavalink v3.3.x.x jar files and previous with RLL 0.8.x and previous
-                            extra_error_string = extra
                         embed = discord.Embed(
                             title=_("Track Error"),
                             colour=await self.bot.get_embed_color(message_channel),

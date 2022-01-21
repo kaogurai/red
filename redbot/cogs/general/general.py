@@ -260,7 +260,6 @@ class General(commands.Cog):
         total_users = humanize_number(guild.member_count)
         text_channels = humanize_number(len(guild.text_channels))
         voice_channels = humanize_number(len(guild.voice_channels))
-<<<<<<< HEAD
         stage_channels = humanize_number(len(guild.stage_channels))
 
         def _size(num: int):
@@ -281,21 +280,6 @@ class General(commands.Cog):
             _("\nShard ID: **{shard_id}/{shard_count}**").format(
                 shard_id=humanize_number(guild.shard_id + 1),
                 shard_count=humanize_number(ctx.bot.shard_count),
-=======
-        if not details:
-            data = discord.Embed(description=created_at, colour=await ctx.embed_colour())
-            data.add_field(name=_("Users online"), value=f"{online}/{total_users}")
-            data.add_field(name=_("Text Channels"), value=text_channels)
-            data.add_field(name=_("Voice Channels"), value=voice_channels)
-            data.add_field(name=_("Roles"), value=humanize_number(len(guild.roles)))
-            data.add_field(name=_("Owner"), value=str(guild.owner))
-            data.set_footer(
-                text=_("Server ID: ")
-                + str(guild.id)
-                + _("  •  Use {command} for more info on the server.").format(
-                    command=f"{ctx.clean_prefix}serverinfo 1"
-                )
->>>>>>> b05933274a11fb097873ab0d1b246d37b06aa306
             )
             if ctx.bot.shard_count > 1
             else ""

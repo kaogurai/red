@@ -353,7 +353,7 @@ class CoreLogic:
         """
         return {"redbot": __version__, "discordpy": discord.__version__}
 
-    async def _invite_url(self, snowflake: int=None) -> str:
+    async def _invite_url(self) -> str:
         """
         Generates the invite URL for the bot.
         Returns
