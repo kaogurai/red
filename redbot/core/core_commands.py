@@ -1472,27 +1472,6 @@ class Core(commands.commands._RuleDropper, commands.Cog, CoreLogic):
         else:
             await ctx.send(_("No exception has occurred yet."))
 
-    @commands.command()
-    @commands.check(CoreLogic._can_get_invite_url)
-    async def invite(self, ctx):
-        """Shows [botname]'s invite url.
-
-        This will always send the invite to DMs to keep it private.
-
-        This command is locked to the owner unless `[p]inviteset public` is set to True.
-
-        **Example:**
-            - `[p]invite`
-        """
-        try:
-            await ctx.author.send(await self.bot.get_invite_url())
-            await ctx.tick()
-        except discord.errors.Forbidden:
-            await ctx.send(
-                "I couldn't send the invite message to you in DM. "
-                "Either you blocked me or you disabled DMs in this server."
-            )
-
     @commands.group()
     @checks.is_owner()
     async def inviteset(self, ctx):
