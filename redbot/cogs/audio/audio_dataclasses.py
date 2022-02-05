@@ -30,8 +30,6 @@ _ = Translator("Audio", Path(__file__))
 _RE_REMOVE_START: Final[Pattern] = re.compile(r"^(sc|list) ")
 _RE_YOUTUBE_TIMESTAMP: Final[Pattern] = re.compile(r"[&|?]t=(\d+)s?")
 _RE_YOUTUBE_INDEX: Final[Pattern] = re.compile(r"&index=(\d+)")
-_RE_SPOTIFY_URL: Final[Pattern] = re.compile(r"(http[s]?://)?(open\.spotify\.com)/")
-_RE_SPOTIFY_TIMESTAMP: Final[Pattern] = re.compile(r"#(\d+):(\d+)")
 _RE_SOUNDCLOUD_TIMESTAMP: Final[Pattern] = re.compile(r"#t=(\d+):(\d+)s?")
 _RE_TWITCH_TIMESTAMP: Final[Pattern] = re.compile(r"\?t=(\d+)h(\d+)m(\d+)s")
 _PATH_SEPS: Final[Tuple[str, str]] = (posixpath.sep, ntpath.sep)
@@ -350,7 +348,6 @@ class Query:
         self.invoked_from: Optional[str] = kwargs.get("invoked_from", None)
         self.local_name: Optional[str] = kwargs.get("name", None)
         self.search_subfolders: bool = kwargs.get("search_subfolders", False)
-        self.spotify_uri: Optional[str] = kwargs.get("uri", None)
         self.uri: Optional[str] = kwargs.get("url", None)
         self.is_url: bool = kwargs.get("is_url", False)
 
@@ -391,7 +388,6 @@ class Query:
                 self.is_stream,
                 self.single_track,
                 self.id,
-                self.spotify_uri,
                 self.start_time,
                 self.track_index,
                 self.uri,
@@ -461,23 +457,6 @@ class Query:
                 returning["album"] = True
         else:
             track = str(track)
-            if track.startswith("spotify:"):
-                returning["spotify"] = True
-                if ":playlist:" in track:
-                    returning["playlist"] = True
-                elif ":album:" in track:
-                    returning["album"] = True
-                elif ":track:" in track:
-                    returning["single"] = True
-                _id = track.split(":", 2)[-1]
-                _id = _id.split("?")[0]
-                returning["id"] = _id
-                if "#" in _id:
-                    match = re.search(_RE_SPOTIFY_TIMESTAMP, track)
-                    if match:
-                        returning["start_time"] = (int(match.group(1)) * 60) + int(match.group(2))
-                returning["uri"] = track
-                return returning
             if track.startswith("sc ") or track.startswith("list "):
                 if track.startswith("sc "):
                     returning["invoked_from"] = "sc search"
@@ -539,22 +518,6 @@ class Query:
                             returning["album"] = True
                         elif "/track/" in track:
                             returning["single"] = True
-                        val = re.sub(_RE_SPOTIFY_URL, "", track).replace("/", ":")
-                        if "user:" in val:
-                            val = val.split(":", 2)[-1]
-                        _id = val.split(":", 1)[-1]
-                        _id = _id.split("?")[0]
-
-                        if "#" in _id:
-                            _id = _id.split("#")[0]
-                            match = re.search(_RE_SPOTIFY_TIMESTAMP, track)
-                            if match:
-                                returning["start_time"] = (int(match.group(1)) * 60) + int(
-                                    match.group(2)
-                                )
-
-                        returning["id"] = _id
-                        returning["uri"] = f"spotify:{val}"
                     elif url_domain == "soundcloud.com":
                         returning["soundcloud"] = True
                         if "#t=" in track:
@@ -617,8 +580,6 @@ class Query:
     def _get_query(self):
         if self.is_local:
             return self.local_track_path.to_string()
-        elif self.is_spotify:
-            return self.spotify_uri
         elif self.is_search and self.is_youtube:
             return f"ytsearch:{self.track}"
         elif self.is_search and self.is_soundcloud:
@@ -663,7 +624,6 @@ class Query:
                     self.is_stream,
                     self.single_track,
                     self.id,
-                    self.spotify_uri,
                     self.start_time,
                     self.track_index,
                     self.uri,

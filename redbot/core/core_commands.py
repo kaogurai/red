@@ -3143,7 +3143,7 @@ class Core(commands.commands._RuleDropper, commands.Cog, CoreLogic):
         Remove the given services with all their keys and tokens.
 
         **Examples:**
-            - `[p]set api remove spotify`
+            - `[p]set api remove twitch`
             - `[p]set api remove github youtube`
 
         **Arguments:**

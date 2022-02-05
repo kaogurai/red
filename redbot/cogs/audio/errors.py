@@ -82,26 +82,6 @@ class ApiError(AudioError):
     """Base exception for API errors in the Audio cog."""
 
 
-class SpotifyApiError(ApiError):
-    """Base exception for Spotify API errors."""
-
-
-class SpotifyFetchError(SpotifyApiError):
-    """Fetching Spotify data failed."""
-
-    def __init__(self, message, *args):
-        self.message = message
-        super().__init__(*args)
-
-
-class YouTubeApiError(ApiError):
-    """Base exception for YouTube Data API errors."""
-
-    def __init__(self, message, *args):
-        self.message = message
-        super().__init__(*args)
-
-
 class DatabaseError(AudioError):
     """Base exception for database errors in the Audio cog."""
 

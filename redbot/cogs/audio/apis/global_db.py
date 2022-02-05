@@ -61,7 +61,7 @@ class GlobalCacheWrapper:
             return {}
         try:
             query = Query.process_input(query, self.cog.local_folder_current_path)
-            if any([not query or not query.valid or query.is_spotify or query.is_local]):
+            if any([not query or not query.valid or query.is_local]):
                 return {}
             await self._get_api_key()
             if self.api_key is None:
@@ -90,38 +90,6 @@ class GlobalCacheWrapper:
             debug_exc_log(log, err, "Failed to Get query: %s/%s", api_url, query)
         return {}
 
-    async def get_spotify(self, title: str, author: Optional[str]) -> dict:
-        if not self.cog.global_api_user.get("can_read"):
-            return {}
-        api_url = f"{_API_URL}api/v2/queries/spotify"
-        try:
-            search_response = "error"
-            params = {"title": title, "author": author}
-            await self._get_api_key()
-            if self.api_key is None:
-                return {}
-            with contextlib.suppress(aiohttp.ContentTypeError, asyncio.TimeoutError):
-                async with self.session.get(
-                    api_url,
-                    timeout=aiohttp.ClientTimeout(total=await self.config.global_db_get_timeout()),
-                    headers={"Authorization": self.api_key, "X-Token": self._handshake_token},
-                    params=params,
-                ) as r:
-                    search_response = await r.json(loads=json.loads)
-                    if IS_DEBUG and "x-process-time" in r.headers:
-                        log.debug(
-                            "GET/spotify || Ping %s || Status code %d || %s - %s",
-                            r.headers.get("x-process-time"),
-                            r.status,
-                            title,
-                            author,
-                        )
-            if "tracks" not in search_response:
-                return {}
-            return search_response
-        except Exception as err:
-            debug_exc_log(log, err, "Failed to Get query: %s", api_url)
-        return {}
 
     async def post_call(self, llresponse: LoadResult, query: Optional[Query]) -> None:
         try:

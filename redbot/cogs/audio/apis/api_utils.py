@@ -21,26 +21,6 @@ _ = Translator("Audio", Path(__file__))
 
 
 @dataclass
-class YouTubeCacheFetchResult:
-    query: Optional[str]
-    last_updated: int
-
-    def __post_init__(self):
-        if isinstance(self.last_updated, int):
-            self.updated_on: datetime.datetime = datetime.datetime.fromtimestamp(self.last_updated)
-
-
-@dataclass
-class SpotifyCacheFetchResult:
-    query: Optional[str]
-    last_updated: int
-
-    def __post_init__(self):
-        if isinstance(self.last_updated, int):
-            self.updated_on: datetime.datetime = datetime.datetime.fromtimestamp(self.last_updated)
-
-
-@dataclass
 class LavalinkCacheFetchResult:
     query: Optional[MutableMapping]
     last_updated: int

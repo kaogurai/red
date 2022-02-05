@@ -94,16 +94,6 @@ class CacheLevel:
         return cls(0)
 
     @classmethod
-    def set_spotify(cls):
-        """A factory method that creates a :class:`CacheLevel` with Spotify caching level."""
-        return cls(0b00011)
-
-    @classmethod
-    def set_youtube(cls):
-        """A factory method that creates a :class:`CacheLevel` with YouTube caching level."""
-        return cls(0b00100)
-
-    @classmethod
     def set_lavalink(cls):
         """A factory method that creates a :class:`CacheLevel` with lavalink caching level."""
         return cls(0b11000)
@@ -127,25 +117,6 @@ class CacheLevel:
     @lavalink.setter
     def lavalink(self, value):
         self._set(4, value)
-
-    @property
-    def youtube(self):
-        """:class:`bool`: Returns ``True`` if a user can move users between other voice
-        channels."""
-        return self._bit(2)
-
-    @youtube.setter
-    def youtube(self, value):
-        self._set(2, value)
-
-    @property
-    def spotify(self):
-        """:class:`bool`: Returns ``True`` if a user can use voice activation in voice channels."""
-        return self._bit(1)
-
-    @spotify.setter
-    def spotify(self, value):
-        self._set(1, value)
 
 
 class Notifier:

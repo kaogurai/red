@@ -222,10 +222,6 @@ class MixinMeta(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def _check_api_tokens(self) -> MutableMapping:
-        raise NotImplementedError()
-
-    @abstractmethod
     async def send_embed_msg(
         self, ctx: commands.Context, author: Mapping[str, str] = None, **kwargs
     ) -> discord.Message:
@@ -369,12 +365,6 @@ class MixinMeta(ABC):
 
     @abstractmethod
     async def _apply_gain(self, guild_id: int, band: int, gain: float) -> None:
-        raise NotImplementedError()
-
-    @abstractmethod
-    async def _get_spotify_tracks(
-        self, ctx: commands.Context, query: "Query", forced: bool = False
-    ) -> Union[discord.Message, List[lavalink.Track], lavalink.Track]:
         raise NotImplementedError()
 
     @abstractmethod

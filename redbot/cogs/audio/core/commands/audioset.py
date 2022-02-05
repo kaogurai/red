@@ -986,11 +986,7 @@ class AudioSetCommands(MixinMeta, metaclass=CompositeMetaClass):
 
         countrycode = data["country_code"]
 
-        spotify_cache = CacheLevel.set_spotify()
-        youtube_cache = CacheLevel.set_youtube()
         lavalink_cache = CacheLevel.set_lavalink()
-        has_spotify_cache = current_level.is_superset(spotify_cache)
-        has_youtube_cache = current_level.is_superset(youtube_cache)
         has_lavalink_cache = current_level.is_superset(lavalink_cache)
         cache_enabled = CacheLevel.set_lavalink().is_subset(current_level)
         autoplaylist = data["autoplaylist"]
@@ -1030,7 +1026,6 @@ class AudioSetCommands(MixinMeta, metaclass=CompositeMetaClass):
             "Shuffle bumped:   [{bumpped_shuffle}]\n"
             "Song notify msgs: [{notify}]\n"
             "Songs as status:  [{status}]\n"
-            "Spotify search:   [{countrycode}]\n"
         ).format(
             max_volume=maxvolume,
             countrycode=countrycode,
@@ -1087,21 +1082,11 @@ class AudioSetCommands(MixinMeta, metaclass=CompositeMetaClass):
                 + _("Cache Settings")
                 + "---        \n"
                 + _("Max age:                [{max_age}]\n")
-                + _("Local Spotify cache:    [{spotify_status}]\n")
-                + _("Local Youtube cache:    [{youtube_status}]\n")
                 + _("Local Lavalink cache:   [{lavalink_status}]\n")
             ).format(
                 max_age=str(await self.config.cache_age()) + " " + _("days"),
-                spotify_status=_("Enabled") if has_spotify_cache else _("Disabled"),
-                youtube_status=_("Enabled") if has_youtube_cache else _("Disabled"),
                 lavalink_status=_("Enabled") if has_lavalink_cache else _("Disabled"),
             )
-        msg += (
-            "\n---"
-            + _("User Settings")
-            + "---        \n"
-            + _("Spotify search:   [{country_code}]\n")
-        ).format(country_code=await self.config.user(ctx.author).country_code())
 
         msg += (
             "\n---"
@@ -1238,87 +1223,6 @@ class AudioSetCommands(MixinMeta, metaclass=CompositeMetaClass):
         await self.config.guild(ctx.guild).vote_percent.set(percent)
         await self.config.guild(ctx.guild).vote_enabled.set(enabled)
 
-    @command_audioset.command(name="youtubeapi")
-    @commands.is_owner()
-    async def command_audioset_youtubeapi(self, ctx: commands.Context):
-        """Instructions to set the YouTube API key."""
-        message = _(
-            f"1. Go to Google Developers Console and log in with your Google account.\n"
-            "(https://console.developers.google.com/)\n"
-            "2. You should be prompted to create a new project (name does not matter).\n"
-            "3. Click on Enable APIs and Services at the top.\n"
-            "4. In the list of APIs choose or search for YouTube Data API v3 and "
-            "click on it. Choose Enable.\n"
-            "5. Click on Credentials on the left navigation bar.\n"
-            "6. Click on Create Credential at the top.\n"
-            '7. At the top click the link for "API key".\n'
-            "8. No application restrictions are needed. Click Create at the bottom.\n"
-            "9. You now have a key to add to `{prefix}set api youtube api_key <your_api_key_here>`"
-        ).format(prefix=ctx.prefix)
-        await ctx.maybe_send_embed(message)
-
-    @command_audioset.command(name="spotifyapi")
-    @commands.is_owner()
-    async def command_audioset_spotifyapi(self, ctx: commands.Context):
-        """Instructions to set the Spotify API tokens."""
-        message = _(
-            "1. Go to Spotify developers and log in with your Spotify account.\n"
-            "(https://developer.spotify.com/dashboard/applications)\n"
-            '2. Click "Create An App".\n'
-            "3. Fill out the form provided with your app name, etc.\n"
-            '4. When asked if you\'re developing commercial integration select "No".\n'
-            "5. Accept the terms and conditions.\n"
-            "6. Copy your client ID and your client secret into:\n"
-            "`{prefix}set api spotify client_id <your_client_id_here> "
-            "client_secret <your_client_secret_here>`"
-        ).format(prefix=ctx.prefix)
-        await ctx.maybe_send_embed(message)
-
-    @command_audioset.command(name="countrycode")
-    @commands.guild_only()
-    @commands.mod_or_permissions(administrator=True)
-    async def command_audioset_countrycode(self, ctx: commands.Context, country: str):
-        """Set the country code for Spotify searches."""
-        if len(country) != 2:
-            return await self.send_embed_msg(
-                ctx,
-                title=_("Invalid Country Code"),
-                description=_(
-                    "Please use an official [ISO 3166-1 alpha-2]"
-                    "(https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2) code."
-                ),
-            )
-        country = country.upper()
-        await self.send_embed_msg(
-            ctx,
-            title=_("Setting Changed"),
-            description=_("Country Code set to {country}.").format(country=country),
-        )
-
-        await self.config.guild(ctx.guild).country_code.set(country)
-
-    @command_audioset.command(name="mycountrycode")
-    @commands.guild_only()
-    async def command_audioset_countrycode_user(self, ctx: commands.Context, country: str):
-        """Set the country code for Spotify searches."""
-        if len(country) != 2:
-            return await self.send_embed_msg(
-                ctx,
-                title=_("Invalid Country Code"),
-                description=_(
-                    "Please use an official [ISO 3166-1 alpha-2]"
-                    "(https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2) code."
-                ),
-            )
-        country = country.upper()
-        await self.send_embed_msg(
-            ctx,
-            title=_("Setting Changed"),
-            description=_("Country Code set to {country}.").format(country=country),
-        )
-
-        await self.config.user(ctx.author).country_code.set(country)
-
     @command_audioset.command(name="cache")
     @commands.is_owner()
     async def command_audioset_cache(self, ctx: commands.Context, *, level: int = None):
@@ -1327,31 +1231,21 @@ class AudioSetCommands(MixinMeta, metaclass=CompositeMetaClass):
         Level can be one of the following:
 
         0: Disables all caching
-        1: Enables Spotify Cache
-        2: Enables YouTube Cache
         3: Enables Lavalink Cache
         5: Enables all Caches
 
         If you wish to disable a specific cache use a negative number.
         """
         current_level = CacheLevel(await self.config.cache_level())
-        spotify_cache = CacheLevel.set_spotify()
-        youtube_cache = CacheLevel.set_youtube()
         lavalink_cache = CacheLevel.set_lavalink()
-        has_spotify_cache = current_level.is_superset(spotify_cache)
-        has_youtube_cache = current_level.is_superset(youtube_cache)
         has_lavalink_cache = current_level.is_superset(lavalink_cache)
 
         if level is None:
             msg = (
                 _("Max age:          [{max_age}]\n")
-                + _("Spotify cache:    [{spotify_status}]\n")
-                + _("Youtube cache:    [{youtube_status}]\n")
                 + _("Lavalink cache:   [{lavalink_status}]\n")
             ).format(
                 max_age=str(await self.config.cache_age()) + " " + _("days"),
-                spotify_status=_("Enabled") if has_spotify_cache else _("Disabled"),
-                youtube_status=_("Enabled") if has_youtube_cache else _("Disabled"),
                 lavalink_status=_("Enabled") if has_lavalink_cache else _("Disabled"),
             )
             await self.send_embed_msg(
@@ -1372,31 +1266,15 @@ class AudioSetCommands(MixinMeta, metaclass=CompositeMetaClass):
                 newcache = current_level - lavalink_cache
             else:
                 newcache = current_level + lavalink_cache
-        elif level in [-2, 2]:
-            if removing:
-                newcache = current_level - youtube_cache
-            else:
-                newcache = current_level + youtube_cache
-        elif level in [-1, 1]:
-            if removing:
-                newcache = current_level - spotify_cache
-            else:
-                newcache = current_level + spotify_cache
         else:
             return await ctx.send_help()
 
-        has_spotify_cache = newcache.is_superset(spotify_cache)
-        has_youtube_cache = newcache.is_superset(youtube_cache)
         has_lavalink_cache = newcache.is_superset(lavalink_cache)
         msg = (
             _("Max age:          [{max_age}]\n")
-            + _("Spotify cache:    [{spotify_status}]\n")
-            + _("Youtube cache:    [{youtube_status}]\n")
             + _("Lavalink cache:   [{lavalink_status}]\n")
         ).format(
             max_age=str(await self.config.cache_age()) + " " + _("days"),
-            spotify_status=_("Enabled") if has_spotify_cache else _("Disabled"),
-            youtube_status=_("Enabled") if has_youtube_cache else _("Disabled"),
             lavalink_status=_("Enabled") if has_lavalink_cache else _("Disabled"),
         )
 
