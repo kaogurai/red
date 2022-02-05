@@ -591,6 +591,13 @@ class Query:
 
                         if not any(x in track for x in ["/clip/", "/videos/"]):
                             returning["stream"] = True
+                    elif url_domain == "apple.com":
+                        if "/album/" in track and "?i=" not in track:
+                            returning["album"] = True
+                        elif "/playlist/" in track:
+                            returning["playlist"] = True
+                        elif "?i" in track:
+                            returning["single"] = True
                     else:
                         returning["other"] = True
                         returning["single"] = True
