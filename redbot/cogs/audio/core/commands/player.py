@@ -226,6 +226,16 @@ class PlayerCommands(MixinMeta, metaclass=CompositeMetaClass):
 
         if not await self.maybe_charge_requester(ctx, guild_data["jukebox_price"]):
             return
+
+        try:
+            tracks = await self._enqueue_tracks(ctx, query, enqueue=False)
+        except QueryUnauthorized as err:
+            return await self.send_embed_msg(
+                ctx, title=_("Unable To Play Tracks"), description=err.message
+            )
+        except Exception as e:
+            self.update_player_lock(ctx, False)
+            raise e
         
         if isinstance(tracks, discord.Message):
             return
