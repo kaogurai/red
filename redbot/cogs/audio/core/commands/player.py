@@ -236,7 +236,6 @@ class PlayerCommands(MixinMeta, metaclass=CompositeMetaClass):
         except Exception as e:
             self.update_player_lock(ctx, False)
             raise e
-        
         if isinstance(tracks, discord.Message):
             return
         elif not tracks:
