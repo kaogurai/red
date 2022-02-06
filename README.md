@@ -10,6 +10,7 @@ this fork is mainly for my use, and therefor i will not be providing any support
 - a playmix command has been added to audio (from draper's alpha audio)
 - sentry has been added to the bot (plus `[p]set sentry` to set the dsn)
 - supports apple music in audio (needs [apple music ll plugin](https://github.com/Topis-Lavalink-Plugins/Topis-Source-Managers-Plugin))
+- self.bot.session now exists
 
 ### enhancements
 - audio uses lavalink's /loadtracks instead of the youtube api
