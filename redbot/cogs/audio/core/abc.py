@@ -368,23 +368,6 @@ class MixinMeta(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def _genre_search_button_action(
-        self, ctx: commands.Context, options: List, emoji: str, page: int, playlist: bool = False
-    ) -> str:
-        raise NotImplementedError()
-
-    @abstractmethod
-    async def _build_genre_search_page(
-        self,
-        ctx: commands.Context,
-        tracks: List,
-        page_num: int,
-        title: str,
-        playlist: bool = False,
-    ) -> discord.Embed:
-        raise NotImplementedError()
-
-    @abstractmethod
     async def command_audioset_autoplay_toggle(self, ctx: commands.Context):
         raise NotImplementedError()
 
