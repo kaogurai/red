@@ -30,6 +30,7 @@ _ = Translator("Audio", Path(__file__))
 _RE_REMOVE_START: Final[Pattern] = re.compile(r"^(sc|list) ")
 _RE_YOUTUBE_TIMESTAMP: Final[Pattern] = re.compile(r"[&|?]t=(\d+)s?")
 _RE_YOUTUBE_INDEX: Final[Pattern] = re.compile(r"&index=(\d+)")
+_RE_SPOTIFY_URI: Final[Pattern] = re.compile(r"spotify:(track|artist|album|playlist):([a-zA-Z0-9]+)")
 _RE_SOUNDCLOUD_TIMESTAMP: Final[Pattern] = re.compile(r"#t=(\d+):(\d+)s?")
 _RE_TWITCH_TIMESTAMP: Final[Pattern] = re.compile(r"\?t=(\d+)h(\d+)m(\d+)s")
 _PATH_SEPS: Final[Tuple[str, str]] = (posixpath.sep, ntpath.sep)
@@ -323,7 +324,7 @@ class Query:
     """
 
     def __init__(self, query: Union[LocalPath, str], local_folder_current_path: Path, **kwargs):
-        query = kwargs.get("queryforced", query)
+        self._query = kwargs.get("queryforced", query)
         self._raw: Union[LocalPath, str] = query
         self._local_folder_current_path = local_folder_current_path
         _localtrack: LocalPath = LocalPath(query, local_folder_current_path)
@@ -364,7 +365,7 @@ class Query:
             self.uri = self.track
         else:
             self.local_track_path: Optional[LocalPath] = None
-            self.track: str = str(query)
+            self.track: str = str(self._query)
 
         self.lavalink_query: str = self._get_query()
 
@@ -438,6 +439,8 @@ class Query:
 
         possible_values.update(dict(**kwargs))
         possible_values.update(cls._parse(query, _local_folder_current_path, **kwargs))
+        if "_query" in possible_values:
+            query = possible_values.pop("_query")
         return cls(query, _local_folder_current_path, **possible_values)
 
     @staticmethod
@@ -457,6 +460,13 @@ class Query:
                 returning["album"] = True
         else:
             track = str(track)
+            if track.startswith("spotify:"):
+                match = re.search(_RE_SPOTIFY_URI, track)
+                _type = match.group(1)
+                id = match.group(2)
+                base_url = f"https://open.spotify.com/{_type}/{id}"
+                returning["_query"] = base_url
+                track = base_url
             if track.startswith("sc ") or track.startswith("list "):
                 if track.startswith("sc "):
                     returning["invoked_from"] = "sc search"
