@@ -1,5 +1,4 @@
 import asyncio
-import aiohttp
 import inspect
 import logging
 import os
@@ -96,7 +95,6 @@ class Red(
         self.rpc_enabled = cli_flags.rpc
         self.rpc_port = cli_flags.rpc_port
         self._last_exception = None
-        self.session = aiohttp.ClientSession()
         self._config.register_global(
             token=None,
             prefix=[],
@@ -1875,7 +1873,6 @@ class Red(
     async def close(self):
         """Logs out of Discord and closes all connections."""
         await super().close()
-        await self.session.close()
         await drivers.get_driver_class().teardown()
         try:
             if self.rpc_enabled:
