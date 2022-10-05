@@ -424,8 +424,8 @@ class Query:
 
         if isinstance(query, str):
             query = query.strip("<>")
-            while "ytsearch:" in query:
-                query = query.replace("ytsearch:", "")
+            while "dsearch:" in query:
+                query = query.replace("dsearch:", "")
             while "scsearch:" in query:
                 query = query.replace("scsearch:", "")
 
@@ -591,7 +591,7 @@ class Query:
         if self.is_local:
             return self.local_track_path.to_string()
         elif self.is_search and self.is_youtube:
-            return f"ytsearch:{self.track}"
+            return f"dsearch:{self.track}"
         elif self.is_search and self.is_soundcloud:
             return f"scsearch:{self.track}"
         return self.track
