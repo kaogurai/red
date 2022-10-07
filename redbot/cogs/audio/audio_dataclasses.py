@@ -351,6 +351,7 @@ class Query:
         self.search_subfolders: bool = kwargs.get("search_subfolders", False)
         self.uri: Optional[str] = kwargs.get("url", None)
         self.is_url: bool = kwargs.get("is_url", False)
+        self.is_deezer: bool = kwargs.get("deezer", False)
 
         self.start_time: int = kwargs.get("start_time", 0)
         self.track_index: Optional[int] = kwargs.get("track_index", None)
@@ -392,6 +393,7 @@ class Query:
                 self.start_time,
                 self.track_index,
                 self.uri,
+                self.is_deezer,
             )
         )
 
@@ -424,8 +426,8 @@ class Query:
 
         if isinstance(query, str):
             query = query.strip("<>")
-            while "dsearch:" in query:
-                query = query.replace("dsearch:", "")
+            while "dzsearch:" in query:
+                query = query.replace("dzsearch:", "")
             while "scsearch:" in query:
                 query = query.replace("scsearch:", "")
 
@@ -571,6 +573,17 @@ class Query:
                             returning["playlist"] = True
                         elif "?i" in track:
                             returning["single"] = True
+                    elif url_domain == "deezer.com":
+                        if "/album/" in track:
+                            returning["album"] = True
+                        elif "/playlist/" in track:
+                            returning["playlist"] = True
+                        elif "/artist/" in track:
+                            returning["playlist"] = True
+                        else:
+                            returning["single"] = True
+                    elif query_url.netloc == "deezer.page.link":
+                        returning["playlist"] = True
                     else:
                         returning["other"] = True
                         returning["single"] = True
@@ -591,7 +604,7 @@ class Query:
         if self.is_local:
             return self.local_track_path.to_string()
         elif self.is_search and self.is_youtube:
-            return f"dsearch:{self.track}"
+            return f"dzsearch:{self.track}"
         elif self.is_search and self.is_soundcloud:
             return f"scsearch:{self.track}"
         return self.track
