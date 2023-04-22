@@ -172,8 +172,8 @@ class ServerManager:
     async def _get_jar_args(self) -> List[str]:
         (java_available, java_version) = await self._has_java()
 
-        if not java_available:
-            raise RuntimeError("You must install Java 11 for Lavalink to run.")
+        #if not java_available:
+            #raise RuntimeError("You must install Java 11 for Lavalink to run.")
 
         return [
             self._java_exc,

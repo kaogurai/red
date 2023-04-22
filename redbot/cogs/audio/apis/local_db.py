@@ -27,22 +27,6 @@ from ..sql_statements import (
     LAVALINK_QUERY_LAST_FETCHED_RANDOM,
     LAVALINK_UPDATE,
     LAVALINK_UPSERT,
-    SPOTIFY_CREATE_INDEX,
-    SPOTIFY_CREATE_TABLE,
-    SPOTIFY_DELETE_OLD_ENTRIES,
-    SPOTIFY_QUERY,
-    SPOTIFY_QUERY_ALL,
-    SPOTIFY_QUERY_LAST_FETCHED_RANDOM,
-    SPOTIFY_UPDATE,
-    SPOTIFY_UPSERT,
-    YOUTUBE_CREATE_INDEX,
-    YOUTUBE_CREATE_TABLE,
-    YOUTUBE_DELETE_OLD_ENTRIES,
-    YOUTUBE_QUERY,
-    YOUTUBE_QUERY_ALL,
-    YOUTUBE_QUERY_LAST_FETCHED_RANDOM,
-    YOUTUBE_UPDATE,
-    YOUTUBE_UPSERT,
     PRAGMA_FETCH_user_version,
     PRAGMA_SET_journal_mode,
     PRAGMA_SET_read_uncommitted,
@@ -51,9 +35,7 @@ from ..sql_statements import (
 )
 from .api_utils import (
     LavalinkCacheFetchForGlobalResult,
-    LavalinkCacheFetchResult,
-    SpotifyCacheFetchResult,
-    YouTubeCacheFetchResult,
+    LavalinkCacheFetchResult
 )
 
 if TYPE_CHECKING:
@@ -90,10 +72,6 @@ class BaseWrapper:
             executor.submit(self.maybe_migrate)
             executor.submit(self.database.cursor().execute, LAVALINK_CREATE_TABLE)
             executor.submit(self.database.cursor().execute, LAVALINK_CREATE_INDEX)
-            executor.submit(self.database.cursor().execute, YOUTUBE_CREATE_TABLE)
-            executor.submit(self.database.cursor().execute, YOUTUBE_CREATE_INDEX)
-            executor.submit(self.database.cursor().execute, SPOTIFY_CREATE_TABLE)
-            executor.submit(self.database.cursor().execute, SPOTIFY_CREATE_INDEX)
             await self.clean_up_old_entries()
 
     def close(self) -> None:
@@ -109,8 +87,6 @@ class BaseWrapper:
         values = {"maxage": maxage_int}
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             executor.submit(self.database.cursor().execute, LAVALINK_DELETE_OLD_ENTRIES, values)
-            executor.submit(self.database.cursor().execute, YOUTUBE_DELETE_OLD_ENTRIES, values)
-            executor.submit(self.database.cursor().execute, SPOTIFY_DELETE_OLD_ENTRIES, values)
 
     def maybe_migrate(self) -> None:
         """Maybe migrate Database schema for the local cache"""
@@ -156,9 +132,7 @@ class BaseWrapper:
 
     async def _fetch_one(
         self, values: MutableMapping
-    ) -> Optional[
-        Union[LavalinkCacheFetchResult, SpotifyCacheFetchResult, YouTubeCacheFetchResult]
-    ]:
+    ) -> Optional[LavalinkCacheFetchResult]:
         """Get an entry from the local cache"""
         max_age = await self.config.cache_age()
         maxage = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(days=max_age)
@@ -182,7 +156,7 @@ class BaseWrapper:
 
     async def _fetch_all(
         self, values: MutableMapping
-    ) -> List[Union[LavalinkCacheFetchResult, SpotifyCacheFetchResult, YouTubeCacheFetchResult]]:
+    ) -> List[LavalinkCacheFetchResult]:
         """Get all entries from the local cache"""
         output = []
         row_result = []
@@ -202,9 +176,7 @@ class BaseWrapper:
 
     async def _fetch_random(
         self, values: MutableMapping
-    ) -> Optional[
-        Union[LavalinkCacheFetchResult, SpotifyCacheFetchResult, YouTubeCacheFetchResult]
-    ]:
+    ) -> Optional[LavalinkCacheFetchResult]:
         """Get a random entry from the local cache"""
         row = None
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
@@ -229,79 +201,6 @@ class BaseWrapper:
         if self.fetch_result is None:
             return None
         return self.fetch_result(*row)
-
-
-class YouTubeTableWrapper(BaseWrapper):
-    def __init__(
-        self, bot: Red, config: Config, conn: APSWConnectionWrapper, cog: Union["Audio", Cog]
-    ):
-        super().__init__(bot, config, conn, cog)
-        self.statement.upsert = YOUTUBE_UPSERT
-        self.statement.update = YOUTUBE_UPDATE
-        self.statement.get_one = YOUTUBE_QUERY
-        self.statement.get_all = YOUTUBE_QUERY_ALL
-        self.statement.get_random = YOUTUBE_QUERY_LAST_FETCHED_RANDOM
-        self.fetch_result = YouTubeCacheFetchResult
-
-    async def fetch_one(
-        self, values: MutableMapping
-    ) -> Tuple[Optional[str], Optional[datetime.datetime]]:
-        """Get an entry from the Youtube table"""
-        result = await self._fetch_one(values)
-        if not result or not isinstance(result.query, str):
-            return None, None
-        return result.query, result.updated_on
-
-    async def fetch_all(self, values: MutableMapping) -> List[YouTubeCacheFetchResult]:
-        """Get all entries from the Youtube table"""
-        result = await self._fetch_all(values)
-        if result and isinstance(result[0], YouTubeCacheFetchResult):
-            return result
-        return []
-
-    async def fetch_random(self, values: MutableMapping) -> Optional[str]:
-        """Get a random entry from the Youtube table"""
-        result = await self._fetch_random(values)
-        if not result or not isinstance(result.query, str):
-            return None
-        return result.query
-
-
-class SpotifyTableWrapper(BaseWrapper):
-    def __init__(
-        self, bot: Red, config: Config, conn: APSWConnectionWrapper, cog: Union["Audio", Cog]
-    ):
-        super().__init__(bot, config, conn, cog)
-        self.statement.upsert = SPOTIFY_UPSERT
-        self.statement.update = SPOTIFY_UPDATE
-        self.statement.get_one = SPOTIFY_QUERY
-        self.statement.get_all = SPOTIFY_QUERY_ALL
-        self.statement.get_random = SPOTIFY_QUERY_LAST_FETCHED_RANDOM
-        self.fetch_result = SpotifyCacheFetchResult
-
-    async def fetch_one(
-        self, values: MutableMapping
-    ) -> Tuple[Optional[str], Optional[datetime.datetime]]:
-        """Get an entry from the Spotify table"""
-        result = await self._fetch_one(values)
-        if not result or not isinstance(result.query, str):
-            return None, None
-        return result.query, result.updated_on
-
-    async def fetch_all(self, values: MutableMapping) -> List[SpotifyCacheFetchResult]:
-        """Get all entries from the Spotify table"""
-        result = await self._fetch_all(values)
-        if result and isinstance(result[0], SpotifyCacheFetchResult):
-            return result
-        return []
-
-    async def fetch_random(self, values: MutableMapping) -> Optional[str]:
-        """Get a random entry from the Spotify table"""
-        result = await self._fetch_random(values)
-        if not result or not isinstance(result.query, str):
-            return None
-        return result.query
-
 
 class LavalinkTableWrapper(BaseWrapper):
     def __init__(
@@ -370,5 +269,3 @@ class LocalCacheWrapper:
         self.database = conn
         self.cog = cog
         self.lavalink: LavalinkTableWrapper = LavalinkTableWrapper(bot, config, conn, self.cog)
-        self.spotify: SpotifyTableWrapper = SpotifyTableWrapper(bot, config, conn, self.cog)
-        self.youtube: YouTubeTableWrapper = YouTubeTableWrapper(bot, config, conn, self.cog)

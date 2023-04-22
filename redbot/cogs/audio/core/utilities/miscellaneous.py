@@ -113,15 +113,6 @@ class MiscellaneousUtilities(MixinMeta, metaclass=CompositeMetaClass):
             await self.api_interface.run_all_pending_tasks()
             self.api_interface.close()
 
-    async def _check_api_tokens(self) -> MutableMapping:
-        spotify = await self.bot.get_shared_api_tokens("spotify")
-        youtube = await self.bot.get_shared_api_tokens("youtube")
-        return {
-            "spotify_client_id": spotify.get("client_id", ""),
-            "spotify_client_secret": spotify.get("client_secret", ""),
-            "youtube_api": youtube.get("api_key", ""),
-        }
-
     async def update_external_status(self) -> bool:
         external = await self.config.use_external_lavalink()
         if not external:

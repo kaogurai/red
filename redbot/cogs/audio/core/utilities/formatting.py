@@ -27,67 +27,6 @@ RE_SQUARE = re.compile(r"[\[\]]")
 
 
 class FormattingUtilities(MixinMeta, metaclass=CompositeMetaClass):
-    async def _genre_search_button_action(
-        self, ctx: commands.Context, options: List, emoji: str, page: int, playlist: bool = False
-    ) -> str:
-        try:
-            if emoji == "\N{DIGIT ONE}\N{COMBINING ENCLOSING KEYCAP}":
-                search_choice = options[0 + (page * 5)]
-            elif emoji == "\N{DIGIT TWO}\N{COMBINING ENCLOSING KEYCAP}":
-                search_choice = options[1 + (page * 5)]
-            elif emoji == "\N{DIGIT THREE}\N{COMBINING ENCLOSING KEYCAP}":
-                search_choice = options[2 + (page * 5)]
-            elif emoji == "\N{DIGIT FOUR}\N{COMBINING ENCLOSING KEYCAP}":
-                search_choice = options[3 + (page * 5)]
-            elif emoji == "\N{DIGIT FIVE}\N{COMBINING ENCLOSING KEYCAP}":
-                search_choice = options[4 + (page * 5)]
-            else:
-                search_choice = options[0 + (page * 5)]
-        except IndexError:
-            search_choice = options[-1]
-        if not playlist:
-            return list(search_choice.items())[0]
-        else:
-            return search_choice.get("uri")
-
-    async def _build_genre_search_page(
-        self,
-        ctx: commands.Context,
-        tracks: List,
-        page_num: int,
-        title: str,
-        playlist: bool = False,
-    ) -> discord.Embed:
-        search_num_pages = math.ceil(len(tracks) / 5)
-        search_idx_start = (page_num - 1) * 5
-        search_idx_end = search_idx_start + 5
-        search_list = ""
-        async for i, entry in AsyncIter(tracks[search_idx_start:search_idx_end]).enumerate(
-            start=search_idx_start
-        ):
-            search_track_num = i + 1
-            if search_track_num > 5:
-                search_track_num = search_track_num % 5
-            if search_track_num == 0:
-                search_track_num = 5
-            if playlist:
-                name = "**[{}]({})** - {} {}".format(
-                    entry.get("name"), entry.get("url"), str(entry.get("tracks")), _("tracks")
-                )
-            else:
-                name = f"{list(entry.keys())[0]}"
-            search_list += f"`{search_track_num}.` {name}\n"
-
-        embed = discord.Embed(
-            colour=await ctx.embed_colour(), title=title, description=search_list
-        )
-        embed.set_footer(
-            text=_("Page {page_num}/{total_pages}").format(
-                page_num=page_num, total_pages=search_num_pages
-            )
-        )
-        return embed
-
     async def _search_button_action(
         self, ctx: commands.Context, tracks: List, emoji: str, page: int
     ):

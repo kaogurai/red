@@ -74,7 +74,7 @@ class ValidationUtilities(MixinMeta, metaclass=CompositeMetaClass):
         else:
             guild = None
         if query_obj is not None:
-            query = query_obj.lavalink_query.replace("ytsearch:", "youtubesearch").replace(
+            query = query_obj.lavalink_query.replace("dzsearch:", "deezersearch").replace(
                 "scsearch:", "soundcloudsearch"
             )
         global_whitelist = set(await config.url_keyword_whitelist())

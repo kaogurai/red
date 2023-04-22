@@ -16,7 +16,7 @@ from redbot.core.utils.chat_formatting import bold, escape
 
 from ...audio_dataclasses import _PARTIALLY_SUPPORTED_MUSIC_EXT, Query
 from ...audio_logging import IS_DEBUG, debug_exc_log
-from ...errors import QueryUnauthorized, SpotifyFetchError, TrackEnqueueError
+from ...errors import QueryUnauthorized, TrackEnqueueError
 from ...utils import Notifier
 from ..abc import MixinMeta
 from ..cog_utils import CompositeMetaClass
@@ -220,139 +220,6 @@ class PlayerUtilities(MixinMeta, metaclass=CompositeMetaClass):
             return
         await player.guild.change_voice_state(channel=player.channel, self_deaf=True)
 
-    async def _get_spotify_tracks(
-        self, ctx: commands.Context, query: Query, forced: bool = False
-    ) -> Union[discord.Message, List[lavalink.Track], lavalink.Track]:
-        if ctx.invoked_with in ["play", "genre", "p"]:
-            enqueue_tracks = True
-        else:
-            enqueue_tracks = False
-        player = lavalink.get_player(ctx.guild.id)
-        api_data = await self._check_api_tokens()
-        if any([not api_data["spotify_client_id"], not api_data["spotify_client_secret"]]):
-            return await self.send_embed_msg(
-                ctx,
-                title=_("Invalid Environment"),
-                description=_(
-                    "The owner needs to set the Spotify client ID and Spotify client secret, "
-                    "before Spotify URLs or codes can be used. "
-                    "\nSee `{prefix}audioset spotifyapi` for instructions."
-                ).format(prefix=ctx.prefix),
-            )
-        elif not api_data["youtube_api"]:
-            return await self.send_embed_msg(
-                ctx,
-                title=_("Invalid Environment"),
-                description=_(
-                    "The owner needs to set the YouTube API key before Spotify URLs or "
-                    "codes can be used.\nSee `{prefix}audioset youtubeapi` for instructions."
-                ).format(prefix=ctx.prefix),
-            )
-        try:
-            if self.play_lock[ctx.guild.id]:
-                return await self.send_embed_msg(
-                    ctx,
-                    title=_("Unable To Get Tracks"),
-                    description=_("Wait until the playlist has finished loading."),
-                )
-        except KeyError:
-            pass
-
-        if query.single_track:
-            try:
-                res = await self.api_interface.spotify_query(
-                    ctx, "track", query.id, skip_youtube=True, notifier=None
-                )
-                if not res:
-                    title = _("Nothing found.")
-                    embed = discord.Embed(title=title)
-                    if query.is_local and query.suffix in _PARTIALLY_SUPPORTED_MUSIC_EXT:
-                        title = _("Track is not playable.")
-                        description = _(
-                            "**{suffix}** is not a fully supported "
-                            "format and some tracks may not play."
-                        ).format(suffix=query.suffix)
-                        embed = discord.Embed(title=title, description=description)
-                    return await self.send_embed_msg(ctx, embed=embed)
-            except SpotifyFetchError as error:
-                self.update_player_lock(ctx, False)
-                return await self.send_embed_msg(
-                    ctx, title=error.message.format(prefix=ctx.prefix)
-                )
-            except Exception as e:
-                self.update_player_lock(ctx, False)
-                raise e
-            self.update_player_lock(ctx, False)
-            try:
-                if enqueue_tracks:
-                    new_query = Query.process_input(res[0], self.local_folder_current_path)
-                    new_query.start_time = query.start_time
-                    return await self._enqueue_tracks(ctx, new_query)
-                else:
-                    query = Query.process_input(res[0], self.local_folder_current_path)
-                    try:
-                        result, called_api = await self.api_interface.fetch_track(
-                            ctx, player, query
-                        )
-                    except TrackEnqueueError:
-                        self.update_player_lock(ctx, False)
-                        return await self.send_embed_msg(
-                            ctx,
-                            title=_("Unable to Get Track"),
-                            description=_(
-                                "I'm unable to get a track from Lavalink at the moment, "
-                                "try again in a few minutes."
-                            ),
-                        )
-                    tracks = result.tracks
-                    if not tracks:
-                        embed = discord.Embed(title=_("Nothing found."))
-                        if query.is_local and query.suffix in _PARTIALLY_SUPPORTED_MUSIC_EXT:
-                            embed = discord.Embed(title=_("Track is not playable."))
-                            embed.description = _(
-                                "**{suffix}** is not a fully supported format and some "
-                                "tracks may not play."
-                            ).format(suffix=query.suffix)
-                        return await self.send_embed_msg(ctx, embed=embed)
-                    single_track = tracks[0]
-                    single_track.start_timestamp = query.start_time * 1000
-                    single_track = [single_track]
-
-                    return single_track
-
-            except KeyError:
-                self.update_player_lock(ctx, False)
-                return await self.send_embed_msg(
-                    ctx,
-                    title=_("Invalid Environment"),
-                    description=_(
-                        "The Spotify API key or client secret has not been set properly. "
-                        "\nUse `{prefix}audioset spotifyapi` for instructions."
-                    ).format(prefix=ctx.prefix),
-                )
-            except Exception as e:
-                self.update_player_lock(ctx, False)
-                raise e
-        elif query.is_album or query.is_playlist:
-            try:
-                self.update_player_lock(ctx, True)
-                track_list = await self.fetch_spotify_playlist(
-                    ctx,
-                    "album" if query.is_album else "playlist",
-                    query,
-                    enqueue_tracks,
-                    forced=forced,
-                )
-            finally:
-                self.update_player_lock(ctx, False)
-            return track_list
-        else:
-            return await self.send_embed_msg(
-                ctx,
-                title=_("Unable To Find Tracks"),
-                description=_("This doesn't seem to be a supported Spotify URL or code."),
-            )
-
     async def _enqueue_tracks(
         self, ctx: commands.Context, query: Union[Query, list], enqueue: bool = True
     ) -> Union[discord.Message, List[lavalink.Track], lavalink.Track]:
@@ -436,8 +303,7 @@ class PlayerUtilities(MixinMeta, metaclass=CompositeMetaClass):
 
         if not first_track_only and len(tracks) > 1:
             # a list of Tracks where all should be enqueued
-            # this is a Spotify playlist already made into a list of Tracks or a
-            # url where Lavalink handles providing all Track objects to use, like a
+            # this is a url where Lavalink handles providing all Track objects to use, like a
             # YouTube or Soundcloud playlist
             if len(player.queue) >= 10000:
                 return await self.send_embed_msg(ctx, title=_("Queue size limit reached."))
@@ -612,71 +478,6 @@ class PlayerUtilities(MixinMeta, metaclass=CompositeMetaClass):
         self.update_player_lock(ctx, False)
         message = await self.send_embed_msg(ctx, embed=embed)
         return single_track or message
-
-    async def fetch_spotify_playlist(
-        self,
-        ctx: commands.Context,
-        stype: str,
-        query: Query,
-        enqueue: bool = False,
-        forced: bool = False,
-    ):
-        player = lavalink.get_player(ctx.guild.id)
-        try:
-            embed1 = discord.Embed(title=_("Please wait, finding tracks..."))
-            playlist_msg = await self.send_embed_msg(ctx, embed=embed1)
-            notifier = Notifier(
-                ctx,
-                playlist_msg,
-                {
-                    "spotify": _("Getting track {num}/{total}..."),
-                    "youtube": _("Matching track {num}/{total}..."),
-                    "lavalink": _("Loading track {num}/{total}..."),
-                    "lavalink_time": _("Approximate time remaining: {seconds}"),
-                },
-            )
-            track_list = await self.api_interface.spotify_enqueue(
-                ctx,
-                stype,
-                query.id,
-                enqueue=enqueue,
-                player=player,
-                lock=self.update_player_lock,
-                notifier=notifier,
-                forced=forced,
-                query_global=self.global_api_user.get("can_read"),
-            )
-        except SpotifyFetchError as error:
-            self.update_player_lock(ctx, False)
-            return await self.send_embed_msg(
-                ctx,
-                title=_("Invalid Environment"),
-                description=error.message.format(prefix=ctx.prefix),
-            )
-        except TrackEnqueueError:
-            self.update_player_lock(ctx, False)
-            return await self.send_embed_msg(
-                ctx,
-                title=_("Unable to Get Track"),
-                description=_(
-                    "I'm unable to get a track from Lavalink at the moment, "
-                    "try again in a few minutes."
-                ),
-                error=True,
-            )
-        except (RuntimeError, aiohttp.ServerDisconnectedError):
-            self.update_player_lock(ctx, False)
-            error_embed = discord.Embed(
-                title=_("The connection was reset while loading the playlist.")
-            )
-            await self.send_embed_msg(ctx, embed=error_embed)
-            return None
-        except Exception as e:
-            self.update_player_lock(ctx, False)
-            raise e
-        finally:
-            self.update_player_lock(ctx, False)
-        return track_list
 
     async def set_player_settings(self, ctx: commands.Context) -> None:
         player = lavalink.get_player(ctx.guild.id)

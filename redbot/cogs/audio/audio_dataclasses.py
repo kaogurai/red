@@ -30,8 +30,7 @@ _ = Translator("Audio", Path(__file__))
 _RE_REMOVE_START: Final[Pattern] = re.compile(r"^(sc|list) ")
 _RE_YOUTUBE_TIMESTAMP: Final[Pattern] = re.compile(r"[&|?]t=(\d+)s?")
 _RE_YOUTUBE_INDEX: Final[Pattern] = re.compile(r"&index=(\d+)")
-_RE_SPOTIFY_URL: Final[Pattern] = re.compile(r"(http[s]?://)?(open\.spotify\.com)/")
-_RE_SPOTIFY_TIMESTAMP: Final[Pattern] = re.compile(r"#(\d+):(\d+)")
+_RE_SPOTIFY_URI: Final[Pattern] = re.compile(r"spotify:(track|artist|album|playlist):([a-zA-Z0-9]+)")
 _RE_SOUNDCLOUD_TIMESTAMP: Final[Pattern] = re.compile(r"#t=(\d+):(\d+)s?")
 _RE_TWITCH_TIMESTAMP: Final[Pattern] = re.compile(r"\?t=(\d+)h(\d+)m(\d+)s")
 _PATH_SEPS: Final[Tuple[str, str]] = (posixpath.sep, ntpath.sep)
@@ -325,7 +324,7 @@ class Query:
     """
 
     def __init__(self, query: Union[LocalPath, str], local_folder_current_path: Path, **kwargs):
-        query = kwargs.get("queryforced", query)
+        self._query = kwargs.get("queryforced", query)
         self._raw: Union[LocalPath, str] = query
         self._local_folder_current_path = local_folder_current_path
         _localtrack: LocalPath = LocalPath(query, local_folder_current_path)
@@ -350,9 +349,9 @@ class Query:
         self.invoked_from: Optional[str] = kwargs.get("invoked_from", None)
         self.local_name: Optional[str] = kwargs.get("name", None)
         self.search_subfolders: bool = kwargs.get("search_subfolders", False)
-        self.spotify_uri: Optional[str] = kwargs.get("uri", None)
         self.uri: Optional[str] = kwargs.get("url", None)
         self.is_url: bool = kwargs.get("is_url", False)
+        self.is_deezer: bool = kwargs.get("deezer", False)
 
         self.start_time: int = kwargs.get("start_time", 0)
         self.track_index: Optional[int] = kwargs.get("track_index", None)
@@ -367,7 +366,7 @@ class Query:
             self.uri = self.track
         else:
             self.local_track_path: Optional[LocalPath] = None
-            self.track: str = str(query)
+            self.track: str = str(self._query)
 
         self.lavalink_query: str = self._get_query()
 
@@ -391,10 +390,10 @@ class Query:
                 self.is_stream,
                 self.single_track,
                 self.id,
-                self.spotify_uri,
                 self.start_time,
                 self.track_index,
                 self.uri,
+                self.is_deezer,
             )
         )
 
@@ -427,8 +426,8 @@ class Query:
 
         if isinstance(query, str):
             query = query.strip("<>")
-            while "ytsearch:" in query:
-                query = query.replace("ytsearch:", "")
+            while "dzsearch:" in query:
+                query = query.replace("dzsearch:", "")
             while "scsearch:" in query:
                 query = query.replace("scsearch:", "")
 
@@ -442,6 +441,8 @@ class Query:
 
         possible_values.update(dict(**kwargs))
         possible_values.update(cls._parse(query, _local_folder_current_path, **kwargs))
+        if "_query" in possible_values:
+            query = possible_values.pop("_query")
         return cls(query, _local_folder_current_path, **possible_values)
 
     @staticmethod
@@ -462,22 +463,12 @@ class Query:
         else:
             track = str(track)
             if track.startswith("spotify:"):
-                returning["spotify"] = True
-                if ":playlist:" in track:
-                    returning["playlist"] = True
-                elif ":album:" in track:
-                    returning["album"] = True
-                elif ":track:" in track:
-                    returning["single"] = True
-                _id = track.split(":", 2)[-1]
-                _id = _id.split("?")[0]
-                returning["id"] = _id
-                if "#" in _id:
-                    match = re.search(_RE_SPOTIFY_TIMESTAMP, track)
-                    if match:
-                        returning["start_time"] = (int(match.group(1)) * 60) + int(match.group(2))
-                returning["uri"] = track
-                return returning
+                match = re.search(_RE_SPOTIFY_URI, track)
+                _type = match.group(1)
+                id = match.group(2)
+                base_url = f"https://open.spotify.com/{_type}/{id}"
+                returning["_query"] = base_url
+                track = base_url
             if track.startswith("sc ") or track.startswith("list "):
                 if track.startswith("sc "):
                     returning["invoked_from"] = "sc search"
@@ -539,22 +530,6 @@ class Query:
                             returning["album"] = True
                         elif "/track/" in track:
                             returning["single"] = True
-                        val = re.sub(_RE_SPOTIFY_URL, "", track).replace("/", ":")
-                        if "user:" in val:
-                            val = val.split(":", 2)[-1]
-                        _id = val.split(":", 1)[-1]
-                        _id = _id.split("?")[0]
-
-                        if "#" in _id:
-                            _id = _id.split("#")[0]
-                            match = re.search(_RE_SPOTIFY_TIMESTAMP, track)
-                            if match:
-                                returning["start_time"] = (int(match.group(1)) * 60) + int(
-                                    match.group(2)
-                                )
-
-                        returning["id"] = _id
-                        returning["uri"] = f"spotify:{val}"
                     elif url_domain == "soundcloud.com":
                         returning["soundcloud"] = True
                         if "#t=" in track:
@@ -598,6 +573,17 @@ class Query:
                             returning["playlist"] = True
                         elif "?i" in track:
                             returning["single"] = True
+                    elif url_domain == "deezer.com":
+                        if "/album/" in track:
+                            returning["album"] = True
+                        elif "/playlist/" in track:
+                            returning["playlist"] = True
+                        elif "/artist/" in track:
+                            returning["playlist"] = True
+                        else:
+                            returning["single"] = True
+                    elif query_url.netloc == "deezer.page.link":
+                        returning["playlist"] = True
                     else:
                         returning["other"] = True
                         returning["single"] = True
@@ -617,10 +603,8 @@ class Query:
     def _get_query(self):
         if self.is_local:
             return self.local_track_path.to_string()
-        elif self.is_spotify:
-            return self.spotify_uri
         elif self.is_search and self.is_youtube:
-            return f"ytsearch:{self.track}"
+            return f"dzsearch:{self.track}"
         elif self.is_search and self.is_soundcloud:
             return f"scsearch:{self.track}"
         return self.track
@@ -663,7 +647,6 @@ class Query:
                     self.is_stream,
                     self.single_track,
                     self.id,
-                    self.spotify_uri,
                     self.start_time,
                     self.track_index,
                     self.uri,

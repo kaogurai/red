@@ -587,35 +587,7 @@ class PlaylistUtilities(MixinMeta, metaclass=CompositeMetaClass):
         search = query.is_search
         tracklist = []
 
-        if query.is_spotify:
-            try:
-                if self.play_lock[ctx.guild.id]:
-                    return await self.send_embed_msg(
-                        ctx,
-                        title=_("Unable To Get Tracks"),
-                        description=_("Wait until the playlist has finished loading."),
-                    )
-            except KeyError:
-                pass
-            tracks = await self._get_spotify_tracks(ctx, query, forced=skip_cache)
-
-            if isinstance(tracks, discord.Message):
-                return None
-
-            if not tracks:
-                embed = discord.Embed(title=_("Nothing found."))
-                if query.is_local and query.suffix in _PARTIALLY_SUPPORTED_MUSIC_EXT:
-                    embed = discord.Embed(title=_("Track is not playable."))
-                    embed.description = _(
-                        "**{suffix}** is not a fully supported format and some "
-                        "tracks may not play."
-                    ).format(suffix=query.suffix)
-                return await self.send_embed_msg(ctx, embed=embed)
-            async for track in AsyncIter(tracks):
-                track_obj = self.get_track_json(player, other_track=track)
-                tracklist.append(track_obj)
-            self.update_player_lock(ctx, False)
-        elif query.is_search:
+        if query.is_search:
             try:
                 result, called_api = await self.api_interface.fetch_track(
                     ctx, player, query, forced=skip_cache

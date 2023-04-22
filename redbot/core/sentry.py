@@ -20,14 +20,3 @@ async def _init(bot):
             LoggingIntegration(level=logging.INFO, event_level=logging.ERROR),
         ],
     )
-
-    async def command_start(ctx):
-        if ctx.command is None:
-            return
-        if ctx.guild:
-            m = f'{ctx.author} ({ctx.author.id}) ran command "{ctx.command.qualified_name}" in guild {ctx.guild.name} ({ctx.guild.id})'
-        else:
-            m = f'{ctx.author} ({ctx.author.id}) ran command "{ctx.command.qualified_name}" in DMs'
-        log.info(m)
-
-    bot.add_listener(command_start, "on_command")

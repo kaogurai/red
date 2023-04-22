@@ -22,7 +22,6 @@ from ...audio_logging import IS_DEBUG
 from ...errors import (
     DatabaseError,
     QueryUnauthorized,
-    SpotifyFetchError,
     TrackEnqueueError,
 )
 from ..abc import MixinMeta
@@ -121,8 +120,6 @@ class PlayerCommands(MixinMeta, metaclass=CompositeMetaClass):
 
         if not await self.maybe_charge_requester(ctx, guild_data["jukebox_price"]):
             return
-        if query.is_spotify:
-            return await self._get_spotify_tracks(ctx, query)
         try:
             await self._enqueue_tracks(ctx, query)
         except QueryUnauthorized as err:
@@ -229,11 +226,9 @@ class PlayerCommands(MixinMeta, metaclass=CompositeMetaClass):
 
         if not await self.maybe_charge_requester(ctx, guild_data["jukebox_price"]):
             return
+
         try:
-            if query.is_spotify:
-                tracks = await self._get_spotify_tracks(ctx, query)
-            else:
-                tracks = await self._enqueue_tracks(ctx, query, enqueue=False)
+            tracks = await self._enqueue_tracks(ctx, query, enqueue=False)
         except QueryUnauthorized as err:
             return await self.send_embed_msg(
                 ctx, title=_("Unable To Play Tracks"), description=err.message
@@ -346,195 +341,6 @@ class PlayerCommands(MixinMeta, metaclass=CompositeMetaClass):
 
         self.update_player_lock(ctx, False)
 
-    @commands.command(name="genre")
-    @commands.guild_only()
-    @commands.bot_has_permissions(embed_links=True)
-    async def command_genre(self, ctx: commands.Context):
-        """Pick a Spotify playlist from a list of categories to start playing."""
-
-        async def _category_search_menu(
-            ctx: commands.Context,
-            pages: list,
-            controls: MutableMapping,
-            message: discord.Message,
-            page: int,
-            timeout: float,
-            emoji: str,
-        ):
-            if message:
-                output = await self._genre_search_button_action(ctx, category_list, emoji, page)
-                with contextlib.suppress(discord.HTTPException):
-                    await message.delete()
-                return output
-
-        async def _playlist_search_menu(
-            ctx: commands.Context,
-            pages: list,
-            controls: MutableMapping,
-            message: discord.Message,
-            page: int,
-            timeout: float,
-            emoji: str,
-        ):
-            if message:
-                output = await self._genre_search_button_action(
-                    ctx, playlists_list, emoji, page, playlist=True
-                )
-                with contextlib.suppress(discord.HTTPException):
-                    await message.delete()
-                return output
-
-        category_search_controls = {
-            "\N{DIGIT ONE}\N{COMBINING ENCLOSING KEYCAP}": _category_search_menu,
-            "\N{DIGIT TWO}\N{COMBINING ENCLOSING KEYCAP}": _category_search_menu,
-            "\N{DIGIT THREE}\N{COMBINING ENCLOSING KEYCAP}": _category_search_menu,
-            "\N{DIGIT FOUR}\N{COMBINING ENCLOSING KEYCAP}": _category_search_menu,
-            "\N{DIGIT FIVE}\N{COMBINING ENCLOSING KEYCAP}": _category_search_menu,
-            "\N{LEFTWARDS BLACK ARROW}\N{VARIATION SELECTOR-16}": prev_page,
-            "\N{CROSS MARK}": close_menu,
-            "\N{BLACK RIGHTWARDS ARROW}\N{VARIATION SELECTOR-16}": next_page,
-        }
-        playlist_search_controls = {
-            "\N{DIGIT ONE}\N{COMBINING ENCLOSING KEYCAP}": _playlist_search_menu,
-            "\N{DIGIT TWO}\N{COMBINING ENCLOSING KEYCAP}": _playlist_search_menu,
-            "\N{DIGIT THREE}\N{COMBINING ENCLOSING KEYCAP}": _playlist_search_menu,
-            "\N{DIGIT FOUR}\N{COMBINING ENCLOSING KEYCAP}": _playlist_search_menu,
-            "\N{DIGIT FIVE}\N{COMBINING ENCLOSING KEYCAP}": _playlist_search_menu,
-            "\N{LEFTWARDS BLACK ARROW}\N{VARIATION SELECTOR-16}": prev_page,
-            "\N{CROSS MARK}": close_menu,
-            "\N{BLACK RIGHTWARDS ARROW}\N{VARIATION SELECTOR-16}": next_page,
-        }
-
-        api_data = await self._check_api_tokens()
-        if any([not api_data["spotify_client_id"], not api_data["spotify_client_secret"]]):
-            return await self.send_embed_msg(
-                ctx,
-                title=_("Invalid Environment"),
-                description=_(
-                    "The owner needs to set the Spotify client ID and Spotify client secret, "
-                    "before Spotify URLs or codes can be used. "
-                    "\nSee `{prefix}audioset spotifyapi` for instructions."
-                ).format(prefix=ctx.prefix),
-            )
-        elif not api_data["youtube_api"]:
-            return await self.send_embed_msg(
-                ctx,
-                title=_("Invalid Environment"),
-                description=_(
-                    "The owner needs to set the YouTube API key before Spotify URLs or "
-                    "codes can be used.\nSee `{prefix}audioset youtubeapi` for instructions."
-                ).format(prefix=ctx.prefix),
-            )
-        guild_data = await self.config.guild(ctx.guild).all()
-        if guild_data["dj_enabled"] and not await self._can_instaskip(ctx, ctx.author):
-            return await self.send_embed_msg(
-                ctx,
-                title=_("Unable To Play Tracks"),
-                description=_("You need the DJ role to queue tracks."),
-            )
-        if not self._player_check(ctx):
-            if self.lavalink_connection_aborted:
-                msg = _("Connection to Lavalink has failed")
-                desc = EmptyEmbed
-                if await self.bot.is_owner(ctx.author):
-                    desc = _("Please check your console or logs for details.")
-                return await self.send_embed_msg(ctx, title=msg, description=desc)
-            try:
-                if (
-                    not self.can_join_and_speak(ctx.author.voice.channel)
-                    or not ctx.author.voice.channel.permissions_for(ctx.me).move_members
-                    and self.is_vc_full(ctx.author.voice.channel)
-                ):
-                    return await self.send_embed_msg(
-                        ctx,
-                        title=_("Unable To Play Tracks"),
-                        description=_(
-                            "I don't have permission to connect and speak in your channel."
-                        ),
-                    )
-                await lavalink.connect(
-                    ctx.author.voice.channel,
-                    deafen=await self.config.guild_from_id(ctx.guild.id).auto_deafen(),
-                )
-            except AttributeError:
-                return await self.send_embed_msg(
-                    ctx,
-                    title=_("Unable To Play Tracks"),
-                    description=_("Connect to a voice channel first."),
-                )
-            except IndexError:
-                return await self.send_embed_msg(
-                    ctx,
-                    title=_("Unable To Play Tracks"),
-                    description=_("Connection to Lavalink has not yet been established."),
-                )
-        player = lavalink.get_player(ctx.guild.id)
-        player.store("notify_channel", ctx.channel.id)
-        await self._eq_check(ctx, player)
-        await self.set_player_settings(ctx)
-        if (
-            not ctx.author.voice or ctx.author.voice.channel != player.channel
-        ) and not await self._can_instaskip(ctx, ctx.author):
-            return await self.send_embed_msg(
-                ctx,
-                title=_("Unable To Play Tracks"),
-                description=_("You must be in the voice channel to use the genre command."),
-            )
-        try:
-            category_list = await self.api_interface.spotify_api.get_categories(ctx=ctx)
-        except SpotifyFetchError as error:
-            return await self.send_embed_msg(
-                ctx,
-                title=_("No categories found"),
-                description=error.message.format(prefix=ctx.prefix),
-            )
-        if not category_list:
-            return await self.send_embed_msg(ctx, title=_("No categories found, try again later."))
-        len_folder_pages = math.ceil(len(category_list) / 5)
-        category_search_page_list = []
-        async for page_num in AsyncIter(range(1, len_folder_pages + 1)):
-            embed = await self._build_genre_search_page(
-                ctx, category_list, page_num, _("Categories")
-            )
-            category_search_page_list.append(embed)
-        cat_menu_output = await menu(ctx, category_search_page_list, category_search_controls)
-        if not cat_menu_output:
-            return await self.send_embed_msg(
-                ctx, title=_("No categories selected, try again later.")
-            )
-        category_name, category_pick = cat_menu_output
-        playlists_list = await self.api_interface.spotify_api.get_playlist_from_category(
-            category_pick, ctx=ctx
-        )
-        if not playlists_list:
-            return await self.send_embed_msg(ctx, title=_("No categories found, try again later."))
-        len_folder_pages = math.ceil(len(playlists_list) / 5)
-        playlists_search_page_list = []
-        async for page_num in AsyncIter(range(1, len_folder_pages + 1)):
-            embed = await self._build_genre_search_page(
-                ctx,
-                playlists_list,
-                page_num,
-                _("Playlists for {friendly_name}").format(friendly_name=category_name),
-                playlist=True,
-            )
-            playlists_search_page_list.append(embed)
-        playlists_pick = await menu(ctx, playlists_search_page_list, playlist_search_controls)
-        query = Query.process_input(playlists_pick, self.local_folder_current_path)
-        if not query.valid:
-            return await self.send_embed_msg(ctx, title=_("No tracks to play."))
-        if len(player.queue) >= 10000:
-            return await self.send_embed_msg(
-                ctx, title=_("Unable To Play Tracks"), description=_("Queue size limit reached.")
-            )
-        if not await self.maybe_charge_requester(ctx, guild_data["jukebox_price"]):
-            return
-        if query.is_spotify:
-            return await self._get_spotify_tracks(ctx, query)
-        return await self.send_embed_msg(
-            ctx, title=_("Couldn't find tracks for the selected playlist.")
-        )
-
     @commands.command(name="autoplay")
     @commands.guild_only()
     @commands.bot_has_permissions(embed_links=True)
@@ -637,8 +443,8 @@ class PlayerCommands(MixinMeta, metaclass=CompositeMetaClass):
     async def command_search(self, ctx: commands.Context, *, query: str):
         """Pick a track with a search.
 
-        Use `[p]search list <search term>` to queue all tracks found on YouTube. Use `[p]search sc
-        <search term>` to search on SoundCloud instead of YouTube.
+        Use `[p]search list <search term>` to queue all tracks found. Use `[p]search sc
+        <search term>` to search on SoundCloud.
         """
 
         if not isinstance(query, (str, list, Query)):
@@ -1022,18 +828,15 @@ class PlayerCommands(MixinMeta, metaclass=CompositeMetaClass):
                 title="Unable To Create Mixlist",
                 description="You need to specify a single track to generate a mixlist.",
             )
-        elif not (query.is_youtube or query.is_spotify):
+        elif not (query.is_youtube):
             return await self.send_embed_msg(
                 ctx,
                 title="Unable To Create Mixlist",
-                description="You need to specify a YouTube or Spotify track.",
+                description="You need to specify a YouTube track.",
             )
         try:
             async with ctx.typing():
-                if query.is_spotify:
-                    tracks = await self._get_spotify_tracks(ctx, query)
-                else:
-                    tracks = await self._enqueue_tracks(ctx, query, enqueue=False)
+                tracks = await self._enqueue_tracks(ctx, query, enqueue=False)
                 self.update_player_lock(ctx, False)
                 if isinstance(tracks, discord.Message):
                     return

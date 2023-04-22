@@ -153,8 +153,6 @@ class AudioEvents(MixinMeta, metaclass=CompositeMetaClass):
         if not (track and guild):
             return
         if self.api_interface is not None and self.playlist_api is not None:
-            await self.api_interface.local_cache_api.youtube.clean_up_old_entries()
-            await asyncio.sleep(5)
             await self.playlist_api.delete_scheduled()
             await self.api_interface.persistent_queue_api.drop(guild.id)
             await asyncio.sleep(5)
@@ -181,8 +179,6 @@ class AudioEvents(MixinMeta, metaclass=CompositeMetaClass):
         if not (track and guild):
             return
         if self.api_interface is not None and self.playlist_api is not None:
-            await self.api_interface.local_cache_api.youtube.clean_up_old_entries()
-            await asyncio.sleep(5)
             await self.playlist_api.delete_scheduled()
             await self.api_interface.persistent_queue_api.drop(guild.id)
             await asyncio.sleep(5)
