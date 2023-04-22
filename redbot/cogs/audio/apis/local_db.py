@@ -1,13 +1,13 @@
 import concurrent
 import contextlib
 import datetime
-import logging
 import random
 import time
 from pathlib import Path
-
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Callable, List, MutableMapping, Optional, Tuple, Union
+
+from red_commons.logging import getLogger
 
 from redbot.core import Config
 from redbot.core.bot import Red
@@ -16,7 +16,6 @@ from redbot.core.i18n import Translator
 from redbot.core.utils import AsyncIter
 from redbot.core.utils.dbtools import APSWConnectionWrapper
 
-from ..audio_logging import debug_exc_log
 from ..sql_statements import (
     LAVALINK_CREATE_INDEX,
     LAVALINK_CREATE_TABLE,
@@ -42,7 +41,7 @@ if TYPE_CHECKING:
     from .. import Audio
 
 
-log = logging.getLogger("red.cogs.Audio.api.LocalDB")
+log = getLogger("red.cogs.Audio.api.LocalDB")
 _ = Translator("Audio", Path(__file__))
 _SCHEMA_VERSION = 3
 
@@ -100,7 +99,7 @@ class BaseWrapper:
                     current_version = row_result.fetchone()
                     break
                 except Exception as exc:
-                    debug_exc_log(log, exc, "Failed to completed fetch from database")
+                    log.verbose("Failed to completed fetch from database", exc_info=exc)
             if isinstance(current_version, tuple):
                 current_version = current_version[0]
             if current_version == _SCHEMA_VERSION:
@@ -117,7 +116,7 @@ class BaseWrapper:
             with self.database.transaction() as transaction:
                 transaction.executemany(self.statement.upsert, values)
         except Exception as exc:
-            debug_exc_log(log, exc, "Error during table insert")
+            log.trace("Error during table insert", exc_info=exc)
 
     async def update(self, values: MutableMapping) -> None:
         """Update an entry of the local cache"""
@@ -128,7 +127,7 @@ class BaseWrapper:
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                 executor.submit(self.database.cursor().execute, self.statement.update, values)
         except Exception as exc:
-            debug_exc_log(log, exc, "Error during table update")
+            log.verbose("Error during table update", exc_info=exc)
 
     async def _fetch_one(
         self, values: MutableMapping
@@ -147,7 +146,7 @@ class BaseWrapper:
                     row_result = future.result()
                     row = row_result.fetchone()
                 except Exception as exc:
-                    debug_exc_log(log, exc, "Failed to completed fetch from database")
+                    log.verbose("Failed to completed fetch from database", exc_info=exc)
         if not row:
             return None
         if self.fetch_result is None:
@@ -169,7 +168,7 @@ class BaseWrapper:
                 try:
                     row_result = future.result()
                 except Exception as exc:
-                    debug_exc_log(log, exc, "Failed to completed fetch from database")
+                    log.verbose("Failed to completed fetch from database", exc_info=exc)
         async for row in AsyncIter(row_result):
             output.append(self.fetch_result(*row))
         return output
@@ -195,7 +194,7 @@ class BaseWrapper:
                     else:
                         row = None
                 except Exception as exc:
-                    debug_exc_log(log, exc, "Failed to completed random fetch from database")
+                    log.verbose("Failed to completed random fetch from database", exc_info=exc)
         if not row:
             return None
         if self.fetch_result is None:
@@ -252,7 +251,7 @@ class LavalinkTableWrapper(BaseWrapper):
                 try:
                     row_result = future.result()
                 except Exception as exc:
-                    debug_exc_log(log, exc, "Failed to completed fetch from database")
+                    log.verbose("Failed to completed fetch from database", exc_info=exc)
         async for row in AsyncIter(row_result):
             output.append(self.fetch_for_global(*row))
         return output

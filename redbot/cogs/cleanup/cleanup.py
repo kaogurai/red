@@ -1,19 +1,19 @@
 import contextlib
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Callable, List, Optional, Set, Union
 
 import discord
 
-from redbot.core import checks, commands, Config
+from redbot.core import commands, Config
 from redbot.core.bot import Red
-from redbot.core.commands import RawUserIdConverter
+from redbot.core.commands import positive_int, RawUserIdConverter
 from redbot.core.i18n import Translator, cog_i18n
 from redbot.core.utils.chat_formatting import humanize_number
 from redbot.core.utils.mod import slow_deletion, mass_purge
 from redbot.core.utils.predicates import MessagePredicate
 from .checks import check_self_permissions
-from .converters import PositiveInt, RawMessageIds, positive_int
+from .converters import RawMessageIds
 from copy import copy
 
 _ = Translator("Cleanup", __file__)
@@ -39,7 +39,7 @@ class Cleanup(commands.Cog):
         self.config.register_guild(notify=True)
 
     async def red_delete_data_for_user(self, **kwargs):
-        """ Nothing to delete """
+        """Nothing to delete"""
         return
 
     @staticmethod
@@ -79,10 +79,12 @@ class Cleanup(commands.Cog):
     @staticmethod
     async def get_messages_for_deletion(
         *,
-        channel: Union[discord.TextChannel, discord.DMChannel],
-        number: Optional[PositiveInt] = None,
+        channel: Union[
+            discord.TextChannel, discord.VoiceChannel, discord.DMChannel, discord.Thread
+        ],
+        number: Optional[int] = None,
         check: Callable[[discord.Message], bool] = lambda x: True,
-        limit: Optional[PositiveInt] = None,
+        limit: Optional[int] = None,
         before: Union[discord.Message, datetime] = None,
         after: Union[discord.Message, datetime] = None,
         delete_pinned: bool = False,
@@ -103,7 +105,7 @@ class Cleanup(commands.Cog):
         """
 
         # This isn't actually two weeks ago to allow some wiggle room on API limits
-        two_weeks_ago = datetime.utcnow() - timedelta(days=14, minutes=-5)
+        two_weeks_ago = datetime.now(timezone.utc) - timedelta(days=14, minutes=-5)
 
         def message_filter(message):
             return (
@@ -133,7 +135,9 @@ class Cleanup(commands.Cog):
     async def send_optional_notification(
         self,
         num: int,
-        channel: Union[discord.TextChannel, discord.DMChannel],
+        channel: Union[
+            discord.TextChannel, discord.VoiceChannel, discord.DMChannel, discord.Thread
+        ],
         *,
         subtract_invoking: bool = False,
     ) -> None:
@@ -153,13 +157,14 @@ class Cleanup(commands.Cog):
 
     @staticmethod
     async def get_message_from_reference(
-        channel: discord.TextChannel, reference: discord.MessageReference
+        channel: Union[discord.TextChannel, discord.VoiceChannel, discord.Thread],
+        reference: discord.MessageReference,
     ) -> Optional[discord.Message]:
         message = None
         resolved = reference.resolved
         if resolved and isinstance(resolved, discord.Message):
             message = resolved
-        elif (message := reference.cached_message) :
+        elif message := reference.cached_message:
             pass
         else:
             try:
@@ -188,7 +193,7 @@ class Cleanup(commands.Cog):
 
     @cleanup.command()
     @commands.guild_only()
-    @checks.mod_or_permissions(manage_messages=True)
+    @commands.mod_or_permissions(manage_messages=True)
     @commands.bot_has_permissions(manage_messages=True)
     async def text(
         self, ctx: commands.Context, text: str, number: positive_int, delete_pinned: bool = False
@@ -239,12 +244,12 @@ class Cleanup(commands.Cog):
         )
         log.info(reason)
 
-        await mass_purge(to_delete, channel)
+        await mass_purge(to_delete, channel, reason=reason)
         await self.send_optional_notification(len(to_delete), channel, subtract_invoking=True)
 
     @cleanup.command()
     @commands.guild_only()
-    @checks.mod_or_permissions(manage_messages=True)
+    @commands.mod_or_permissions(manage_messages=True)
     @commands.bot_has_permissions(manage_messages=True)
     async def user(
         self,
@@ -310,12 +315,12 @@ class Cleanup(commands.Cog):
         )
         log.info(reason)
 
-        await mass_purge(to_delete, channel)
+        await mass_purge(to_delete, channel, reason=reason)
         await self.send_optional_notification(len(to_delete), channel, subtract_invoking=True)
 
     @cleanup.command()
     @commands.guild_only()
-    @checks.mod_or_permissions(manage_messages=True)
+    @commands.mod_or_permissions(manage_messages=True)
     @commands.bot_has_permissions(manage_messages=True)
     async def after(
         self,
@@ -363,12 +368,12 @@ class Cleanup(commands.Cog):
         )
         log.info(reason)
 
-        await mass_purge(to_delete, channel)
+        await mass_purge(to_delete, channel, reason=reason)
         await self.send_optional_notification(len(to_delete), channel)
 
     @cleanup.command()
     @commands.guild_only()
-    @checks.mod_or_permissions(manage_messages=True)
+    @commands.mod_or_permissions(manage_messages=True)
     @commands.bot_has_permissions(manage_messages=True)
     async def before(
         self,
@@ -419,12 +424,12 @@ class Cleanup(commands.Cog):
         )
         log.info(reason)
 
-        await mass_purge(to_delete, channel)
+        await mass_purge(to_delete, channel, reason=reason)
         await self.send_optional_notification(len(to_delete), channel, subtract_invoking=True)
 
     @cleanup.command()
     @commands.guild_only()
-    @checks.mod_or_permissions(manage_messages=True)
+    @commands.mod_or_permissions(manage_messages=True)
     @commands.bot_has_permissions(manage_messages=True)
     async def between(
         self,
@@ -472,12 +477,12 @@ class Cleanup(commands.Cog):
         )
         log.info(reason)
 
-        await mass_purge(to_delete, channel)
+        await mass_purge(to_delete, channel, reason=reason)
         await self.send_optional_notification(len(to_delete), channel, subtract_invoking=True)
 
     @cleanup.command()
     @commands.guild_only()
-    @checks.mod_or_permissions(manage_messages=True)
+    @commands.mod_or_permissions(manage_messages=True)
     @commands.bot_has_permissions(manage_messages=True)
     async def messages(
         self, ctx: commands.Context, number: positive_int, delete_pinned: bool = False
@@ -511,12 +516,12 @@ class Cleanup(commands.Cog):
         )
         log.info(reason)
 
-        await mass_purge(to_delete, channel)
+        await mass_purge(to_delete, channel, reason=reason)
         await self.send_optional_notification(len(to_delete), channel, subtract_invoking=True)
 
     @cleanup.command(name="bot")
     @commands.guild_only()
-    @checks.mod_or_permissions(manage_messages=True)
+    @commands.mod_or_permissions(manage_messages=True)
     @commands.bot_has_permissions(manage_messages=True)
     async def cleanup_bot(
         self, ctx: commands.Context, number: positive_int, delete_pinned: bool = False
@@ -598,7 +603,7 @@ class Cleanup(commands.Cog):
         )
         log.info(reason)
 
-        await mass_purge(to_delete, channel)
+        await mass_purge(to_delete, channel, reason=reason)
         await self.send_optional_notification(len(to_delete), channel, subtract_invoking=True)
 
     @cleanup.command(name="self")
@@ -638,7 +643,7 @@ class Cleanup(commands.Cog):
         can_mass_purge = False
         if type(author) is discord.Member:
             me = ctx.guild.me
-            can_mass_purge = channel.permissions_for(me).manage_messages
+            can_mass_purge = ctx.bot_permissions.manage_messages
 
         if match_pattern:
 
@@ -685,7 +690,7 @@ class Cleanup(commands.Cog):
         log.info(reason)
 
         if can_mass_purge:
-            await mass_purge(to_delete, channel)
+            await mass_purge(to_delete, channel, reason=reason)
         else:
             await slow_deletion(to_delete)
         await self.send_optional_notification(
@@ -694,11 +699,9 @@ class Cleanup(commands.Cog):
 
     @cleanup.command(name="duplicates", aliases=["spam"])
     @commands.guild_only()
-    @checks.mod_or_permissions(manage_messages=True)
+    @commands.mod_or_permissions(manage_messages=True)
     @commands.bot_has_permissions(manage_messages=True)
-    async def cleanup_duplicates(
-        self, ctx: commands.Context, number: positive_int = PositiveInt(50)
-    ):
+    async def cleanup_duplicates(self, ctx: commands.Context, number: positive_int = 50):
         """Deletes duplicate messages in the channel from the last X messages and keeps only one copy.
 
         Defaults to 50.
@@ -713,7 +716,12 @@ class Cleanup(commands.Cog):
         def check(m):
             if m.attachments:
                 return False
-            c = (m.author.id, m.content, [e.to_dict() for e in m.embeds])
+            c = (
+                m.author.id,
+                m.content,
+                [embed.to_dict() for embed in m.embeds],
+                [sticker.id for sticker in m.stickers],
+            )
             if c in msgs:
                 spam.append(m)
                 return True
@@ -740,7 +748,7 @@ class Cleanup(commands.Cog):
         )
 
         to_delete.append(ctx.message)
-        await mass_purge(to_delete, ctx.channel)
+        await mass_purge(to_delete, ctx.channel, reason="Duplicate message cleanup")
         await self.send_optional_notification(len(to_delete), ctx.channel, subtract_invoking=True)
 
     @commands.group()

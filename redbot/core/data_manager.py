@@ -8,21 +8,20 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict
 
-import appdirs
-from discord.utils import deprecated
+import platformdirs
 
 from . import commands
+from ._cli import ExitCodes
 
-__all__ = [
-    "create_temp_config",
-    "load_basic_configuration",
+__all__ = (
     "cog_data_path",
     "core_data_path",
-    "load_bundled_data",
     "bundled_data_path",
+    "data_path",
+    "metadata_file",
     "storage_details",
     "storage_type",
-]
+)
 
 log = logging.getLogger("red.data_manager")
 
@@ -36,14 +35,30 @@ basic_config_default: Dict[str, Any] = {
     "CORE_PATH_APPEND": "core",
 }
 
-config_dir = None
-appdir = appdirs.AppDirs("Red-DiscordBot")
-if sys.platform == "linux":
-    if 0 < os.getuid() < 1000:  # pylint: disable=no-member
-        config_dir = Path(appdir.site_data_dir)
-if not config_dir:
-    config_dir = Path(appdir.user_config_dir)
+appdir = platformdirs.PlatformDirs("Red-DiscordBot")
+config_dir = appdir.user_config_path
+_system_user = sys.platform == "linux" and 0 < os.getuid() < 1000
+if _system_user:
+    if Path.home().exists():
+        # We don't want to break someone just because they created home dir
+        # but were already using the site_data_path.
+        #
+        # But otherwise, we do want Red to use user_config_path if home dir exists.
+        _maybe_config_file = appdir.site_data_path / "config.json"
+        if _maybe_config_file.exists():
+            config_dir = _maybe_config_file.parent
+    else:
+        config_dir = appdir.site_data_path
+
 config_file = config_dir / "config.json"
+if not config_file.exists() and sys.platform == "darwin":
+    # backwards compatibility with the location given by appdirs 1.4.4 (replaced by platformdirs 2)
+    # which was the same as user_data_path
+    # https://platformdirs.readthedocs.io/en/stable/changelog.html#platformdirs-2-0-0
+    _old_config_location = appdir.user_data_path / "config.json"
+    if _old_config_location.exists():
+        config_dir.mkdir(parents=True, exist_ok=True)
+        _old_config_location.rename(config_file)
 
 
 def load_existing_config():
@@ -110,7 +125,7 @@ def load_basic_configuration(instance_name_: str):
             "You need to configure the bot instance using `redbot-setup`"
             " prior to running the bot."
         )
-        sys.exit(1)
+        sys.exit(ExitCodes.CONFIGURATION_ERROR)
     try:
         basic_config = config[instance_name]
     except KeyError:
@@ -118,7 +133,7 @@ def load_basic_configuration(instance_name_: str):
             "Instance with this name doesn't exist."
             " You can create new instance using `redbot-setup` prior to running the bot."
         )
-        sys.exit(1)
+        sys.exit(ExitCodes.INVALID_CLI_USAGE)
 
 
 def _base_data_path() -> Path:
@@ -180,12 +195,6 @@ def core_data_path() -> Path:
     return core_path.resolve()
 
 
-# noinspection PyUnusedLocal
-@deprecated("bundled_data_path() without calling this function")
-def load_bundled_data(cog_instance, init_location: str):
-    pass
-
-
 def bundled_data_path(cog_instance: commands.Cog) -> Path:
     """
     Get the path to the "data" directory bundled with this cog.
@@ -222,6 +231,28 @@ def bundled_data_path(cog_instance: commands.Cog) -> Path:
     return bundled_path
 
 
+def data_path() -> Path:
+    """Gets the base data path.
+
+    Returns
+    -------
+    str
+        Storage type.
+    """
+    return _base_data_path()
+
+
+def metadata_file() -> Path:
+    """Gets the path of metadata file.
+
+    Returns
+    -------
+    str
+        Storage type.
+    """
+    return config_file
+
+
 def storage_type() -> str:
     """Gets the storage type as a string.
 
@@ -236,14 +267,14 @@ def storage_type() -> str:
         raise RuntimeError("Bot basic config has not been loaded yet.") from e
 
 
-def storage_details() -> dict:
+def storage_details() -> Dict[str, str]:
     """Gets any details necessary for config drivers to load.
 
     These are set on setup.
 
     Returns
     -------
-    dict
+    Dict[str, str]
         Storage details.
     """
-    return basic_config.get("STORAGE_DETAILS", {})
+    return deepcopy(basic_config.get("STORAGE_DETAILS", {}))
