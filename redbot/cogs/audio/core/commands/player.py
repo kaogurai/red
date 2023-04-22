@@ -767,7 +767,7 @@ class PlayerCommands(MixinMeta, metaclass=CompositeMetaClass):
         if not self._player_check(ctx):
             if self.lavalink_connection_aborted:
                 msg = "Connection to Lavalink has failed"
-                desc = EmptyEmbed
+                desc = None
                 if await self.bot.is_owner(ctx.author):
                     desc = "Please check your console or logs for details."
                 return await self.send_embed_msg(ctx, title=msg, description=desc)
