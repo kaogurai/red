@@ -30,7 +30,9 @@ _ = Translator("Audio", Path(__file__))
 _RE_REMOVE_START: Final[Pattern] = re.compile(r"^(sc|list) ")
 _RE_YOUTUBE_TIMESTAMP: Final[Pattern] = re.compile(r"[&|?]t=(\d+)s?")
 _RE_YOUTUBE_INDEX: Final[Pattern] = re.compile(r"&index=(\d+)")
-_RE_SPOTIFY_URI: Final[Pattern] = re.compile(r"spotify:(track|artist|album|playlist):([a-zA-Z0-9]+)")
+_RE_SPOTIFY_URI: Final[Pattern] = re.compile(
+    r"spotify:(track|artist|album|playlist):([a-zA-Z0-9]+)"
+)
 _RE_SOUNDCLOUD_TIMESTAMP: Final[Pattern] = re.compile(r"#t=(\d+):(\d+)s?")
 _RE_TWITCH_TIMESTAMP: Final[Pattern] = re.compile(r"\?t=(\d+)h(\d+)m(\d+)s")
 _PATH_SEPS: Final[Tuple[str, str]] = (posixpath.sep, ntpath.sep)

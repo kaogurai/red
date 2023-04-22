@@ -4041,7 +4041,7 @@ class Core(commands.commands._RuleDropper, commands.Cog, CoreLogic):
 
     @_set.command()
     @commands.is_owner()
-    async def sentry(self, ctx: commands.Context, url: str=None):
+    async def sentry(self, ctx: commands.Context, url: str = None):
         """
         Sets the Sentry DSN.
         This is used to report errors.
@@ -5815,7 +5815,7 @@ class Core(commands.commands._RuleDropper, commands.Cog, CoreLogic):
 
     @commands.Cog.listener()
     async def on_message_edit(self, before, after):
-        if not after.edited_at or before.content == after.content:  
+        if not after.edited_at or before.content == after.content:
             return
         if not after.author.bot:
             ctx = await self.bot.get_context(after)

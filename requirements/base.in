@@ -18,7 +18,9 @@ Red-Commons
 Red-Lavalink
 rich
 schema
+sentry_sdk
 typing_extensions
+unidecode
 yarl
 distro; sys_platform == "linux"
 uvloop; sys_platform != "win32" and platform_python_implementation == "CPython"

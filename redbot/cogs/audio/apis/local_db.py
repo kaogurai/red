@@ -32,10 +32,7 @@ from ..sql_statements import (
     PRAGMA_SET_temp_store,
     PRAGMA_SET_user_version,
 )
-from .api_utils import (
-    LavalinkCacheFetchForGlobalResult,
-    LavalinkCacheFetchResult
-)
+from .api_utils import LavalinkCacheFetchForGlobalResult, LavalinkCacheFetchResult
 
 if TYPE_CHECKING:
     from .. import Audio
@@ -129,9 +126,7 @@ class BaseWrapper:
         except Exception as exc:
             log.verbose("Error during table update", exc_info=exc)
 
-    async def _fetch_one(
-        self, values: MutableMapping
-    ) -> Optional[LavalinkCacheFetchResult]:
+    async def _fetch_one(self, values: MutableMapping) -> Optional[LavalinkCacheFetchResult]:
         """Get an entry from the local cache"""
         max_age = await self.config.cache_age()
         maxage = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(days=max_age)
@@ -153,9 +148,7 @@ class BaseWrapper:
             return None
         return self.fetch_result(*row)
 
-    async def _fetch_all(
-        self, values: MutableMapping
-    ) -> List[LavalinkCacheFetchResult]:
+    async def _fetch_all(self, values: MutableMapping) -> List[LavalinkCacheFetchResult]:
         """Get all entries from the local cache"""
         output = []
         row_result = []
@@ -173,9 +166,7 @@ class BaseWrapper:
             output.append(self.fetch_result(*row))
         return output
 
-    async def _fetch_random(
-        self, values: MutableMapping
-    ) -> Optional[LavalinkCacheFetchResult]:
+    async def _fetch_random(self, values: MutableMapping) -> Optional[LavalinkCacheFetchResult]:
         """Get a random entry from the local cache"""
         row = None
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
@@ -200,6 +191,7 @@ class BaseWrapper:
         if self.fetch_result is None:
             return None
         return self.fetch_result(*row)
+
 
 class LavalinkTableWrapper(BaseWrapper):
     def __init__(

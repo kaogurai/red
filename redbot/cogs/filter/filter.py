@@ -411,7 +411,7 @@ class Filter(commands.Cog):
             await ctx.send(_("Names and nicknames will no longer be filtered."))
         else:
             await ctx.send(_("Names and nicknames will now be filtered."))
-    
+
     @staticmethod  # thanks kable - https://github.com/kablekompany/Kable-Kogs/blob/master/decancer/decancer.py
     def decancer_text(text):
         try:

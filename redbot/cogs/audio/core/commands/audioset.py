@@ -1248,8 +1248,7 @@ class AudioSetCommands(MixinMeta, metaclass=CompositeMetaClass):
 
         if level is None:
             msg = (
-                _("Max age:          [{max_age}]\n")
-                + _("Lavalink cache:   [{lavalink_status}]\n")
+                _("Max age:          [{max_age}]\n") + _("Lavalink cache:   [{lavalink_status}]\n")
             ).format(
                 max_age=str(await self.config.cache_age()) + " " + _("days"),
                 lavalink_status=_("Enabled") if has_lavalink_cache else _("Disabled"),
@@ -1277,8 +1276,7 @@ class AudioSetCommands(MixinMeta, metaclass=CompositeMetaClass):
 
         has_lavalink_cache = newcache.is_superset(lavalink_cache)
         msg = (
-            _("Max age:          [{max_age}]\n")
-            + _("Lavalink cache:   [{lavalink_status}]\n")
+            _("Max age:          [{max_age}]\n") + _("Lavalink cache:   [{lavalink_status}]\n")
         ).format(
             max_age=str(await self.config.cache_age()) + " " + _("days"),
             lavalink_status=_("Enabled") if has_lavalink_cache else _("Disabled"),
