@@ -1,34 +1,63 @@
-# kaogurai's fork of red
+# Red-DiscordBot fork for kaogurai
 
-## notes
-this fork is mainly for my use, and therefor i will not be providing any support for running this
+## Notes
 
-## changes from core red
+Using this fork is not supported. As in the nature of open source, you are free to use it as long as you follow the license, but I bear no responsibility for any issues that may arise from using this fork.
 
-### new features
-- commands are now processed on command edits
-- a playmix command has been added to audio (from draper's alpha audio)
-- sentry has been added to the bot (plus `[p]set sentry` to set the dsn)
-- supports apple music in audio (needs [apple music ll plugin](https://github.com/Topis-Lavalink-Plugins/Topis-Source-Managers-Plugin))
-- self.bot.session now exists
+## Changes
 
-### enhancements
-- audio uses lavalink's /loadtracks instead of the youtube api
-- cleanup now has a maximum of 10000 messages per command
-- messages are automatically decancered in the filter cog
-- some of the success messages have been changed in the mod cog
-- dms are now sent by default for the mod cog
-- dms are sent by default in the mutes cog but dms are no longer sent for actions made by other users/bots
-- some aliases have been added to audio commands
-- the message when commands error has been made prettier
-- all modlog types are now on by default except filterhit
-- a message will be displayed when trying to purge messages over 14 days old in the cleanup cog
-- `[p]payday` is now in an embed
-- `[p]leaderboard` has been renamed to `[p]economyleaderboard`
-- `[p]serverinfo` has been made pretty
-- `[p]names` and `[p]userinfo` now accepts users outside the guild
+### Audio Cog
 
-### removals
-- `[p]invite` has been removed
-- `[p]serverprefix` has been removed
-- `[p]rename` has been removed
+- Native spotify support has been removed
+  - Removal of the `[p]genre` command
+  - Removed most (if not all) references to spotify from the code
+- Support for Spotify and Apple Music is provided via a lavalink plugin
+- YouTube is no longer used, and has been replaced with Deezer
+- Some aliases have been added
+  
+### Cleanup Cog
+
+- Only 10,000 messages can be deleted at a time
+- The base `[p]cleanup` command has been made into an alias for `[p]cleanup messages`, and some aliases have been added for the cleanup command itself
+- A message will be displayed if the messages are older than 2 weeks and cannot be deleted
+
+### Filter Cog
+
+- Support for 'decancering' messages has been added
+- Names are automatically filtered by default
+- The filterban modlog type is registered by default
+  
+### Mod Cog
+
+- The success messages for moderation commands have been changed to identify the user that was moderated
+- DMs are sent by default when a user is kicked or banned
+- The `[p]rename` command has been removed
+- An alias (`[p]sm`) has been added for `[p]slowmode`
+  
+### Mutes Cog
+
+- DMs are now sent by default
+- DMs are no longer sent when an outside source removes the mute role
+  
+### Permissions API
+
+- The `@commands.admin()` decorator has been made into an alias for `@commands.admin_or_permissions(manage_guild=True)`
+- The `@commands.mod()` decorator has been made into an alias for `@commands.mod_or_permissions(manage_messages=True)`
+
+### Modlog API
+
+- The following modlog types are now registered by default:
+  - voicemute
+  - voiceunmute
+  - channelmute
+  - channelunmute
+  - voicekick
+  
+### Core Bot
+
+- Support for Sentry monitoring has been added
+  - A `[p]`sentry command has been added to set the Sentry DSN
+- A `[p]mydata selfblacklist` command has been added to allow users to blacklist themselves from the bot
+- The `[p]invite` command has been removed
+- The `[p]set serverprefix` command has been removed
+- Commands are now processed on message edits

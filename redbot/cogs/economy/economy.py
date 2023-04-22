@@ -323,19 +323,21 @@ class Economy(commands.Cog):
                 await self.config.user(author).next_payday.set(cur_time)
 
                 pos = await bank.get_leaderboard_position(author)
-
-                msg = _(
-                    "**{author.name}**, take {amount} {currency}. Enjoy!\n\n"
-                    "You now have {new_balance} {currency}.\n\n"
-                    "You are currently #{pos} on the global leaderboard!"
-                ).format(
-                    author=author,
-                    currency=credits_name,
-                    amount=humanize_number(await self.config.PAYDAY_CREDITS()),
-                    new_balance=humanize_number(await bank.get_balance(author)),
-                    pos=humanize_number(pos) if pos else pos,
+                await ctx.send(
+                    _(
+                        "{author.mention} Here, take some {currency}. "
+                        "Enjoy! (+{amount} {currency}!)\n\n"
+                        "You currently have {new_balance} {currency}.\n\n"
+                        "You are currently #{pos} on the global leaderboard!"
+                    ).format(
+                        author=author,
+                        currency=credits_name,
+                        amount=humanize_number(await self.config.PAYDAY_CREDITS()),
+                        new_balance=humanize_number(await bank.get_balance(author)),
+                        pos=humanize_number(pos) if pos else pos,
+                    )
                 )
-                await ctx.send(embed=discord.Embed(description=msg, color=await ctx.embed_color()))
+
             else:
                 relative_time = discord.utils.format_dt(
                     datetime.now(timezone.utc) + timedelta(seconds=next_payday - cur_time), "R"
@@ -379,18 +381,20 @@ class Economy(commands.Cog):
 
                 await self.config.member(author).next_payday.set(next_payday)
                 pos = await bank.get_leaderboard_position(author)
-                msg = _(
-                    "**{author.name}**, take {amount} {currency}. Enjoy!\n\n"
-                    "You now have {new_balance} {currency}.\n\n"
-                    "You are currently #{pos} on the global leaderboard!"
-                ).format(
-                    author=author,
-                    currency=credits_name,
-                    amount=humanize_number(credit_amount),
-                    new_balance=humanize_number(await bank.get_balance(author)),
-                    pos=humanize_number(pos) if pos else pos,
+                await ctx.send(
+                    _(
+                        "{author.mention} Here, take some {currency}. "
+                        "Enjoy! (+{amount} {currency}!)\n\n"
+                        "You currently have {new_balance} {currency}.\n\n"
+                        "You are currently #{pos} on the global leaderboard!"
+                    ).format(
+                        author=author,
+                        currency=credits_name,
+                        amount=humanize_number(credit_amount),
+                        new_balance=humanize_number(await bank.get_balance(author)),
+                        pos=humanize_number(pos) if pos else pos,
+                    )
                 )
-                await ctx.send(embed=discord.Embed(description=msg, color=await ctx.embed_color()))
             else:
                 relative_time = discord.utils.format_dt(
                     datetime.now(timezone.utc) + timedelta(seconds=next_payday - cur_time), "R"
@@ -401,9 +405,9 @@ class Economy(commands.Cog):
                     )
                 )
 
-    @commands.command(aliases=["eleadeboard"])
+    @commands.command()
     @guild_only_check()
-    async def economyleaderboard(self, ctx: commands.Context, top: int = 10, show_global: bool = False):
+    async def leaderboard(self, ctx: commands.Context, top: int = 10, show_global: bool = False):
         """Print the leaderboard.
 
         Defaults to top 10.
