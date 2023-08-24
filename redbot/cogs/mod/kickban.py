@@ -195,7 +195,7 @@ class KickBanMixin(MixinMeta):
                     user.id,
                     days,
                 )
-                success_message = _(f"**{username}** has been banned from the server.")
+                success_message = _(f"**{user_handle}** has been banned from the server.")
             except discord.Forbidden:
                 return False, _("I'm not allowed to do that.")
             except discord.NotFound:
